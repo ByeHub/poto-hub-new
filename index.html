@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumina Photo Gallery | Admin Portal & Public Showcase</title>
+  
+  <!-- Tailwind CSS via Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              500: '#8b5cf6',
+              600: '#7c3aed',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
+
+  <!-- TOP NAVIGATION -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#gallery" onclick="navigateTo('gallery')" class="text-lg font-bold text-white flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white">L</span>
+        Lumina Gallery
+      </a>
+      <div class="flex items-center gap-3">
+        <button onclick="navigateTo('gallery')" class="px-3 py-1.5 text-sm font-medium rounded-lg text-white bg-slate-800">Public Gallery</button>
+        <button onclick="checkAdminAccess()" class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white">Admin Panel</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- VIEW 1: PUBLIC GALLERY -->
+    <section id="viewGallery" class="space-y-6">
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+        <h1 class="text-3xl font-extrabold text-white">Public Visual Showcase</h1>
+        <p class="text-slate-400 text-sm mt-1">Explore photos instantly published by the administrator. No sign-in required!</p>
+        <div class="mt-4 text-sm text-slate-400">Total photos: <span id="galleryPhotoCount" class="text-white font-bold">0</span></div>
+      </div>
+
+      <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: ADMIN LOGIN -->
+    <section id="viewAdminLogin" class="hidden max-w-md mx-auto mt-12 space-y-6">
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 text-center space-y-4">
+        <h1 class="text-2xl font-extrabold text-white">Admin Authentication</h1>
+        <p class="text-slate-400 text-sm">Please enter your username and password to access the upload panel.</p>
+        <form onsubmit="handleAdminLogin(event)" class="space-y-3">
+          <input type="text" id="adminUsernameInput" required placeholder="Username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
+          <input type="password" id="adminPasswordInput" required placeholder="Password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
+          <button type="submit" class="w-full px-5 py-2.5 rounded-xl bg-brand-600 text-sm font-semibold text-white hover:bg-brand-500 transition">Login</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 3: ADMIN PANEL -->
+    <section id="viewAdmin" class="hidden space-y-6">
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-extrabold text-white">Admin Upload Panel</h1>
+          <p class="text-slate-400 text-sm mt-1">Upload local photos from your PC to sync with Firebase Cloud Database.</p>
+        </div>
+        <button onclick="navigateTo('gallery')" class="px-4 py-2 rounded-xl bg-slate-800 text-sm font-medium text-slate-300 hover:text-white">Logout Admin</button>
+      </div>
+
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
+        <form id="uploadPhotoForm" onsubmit="handlePhotoUpload(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Select Image from PC</label>
+            <input type="file" id="uploadFileInput" accept="image/*" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Photo Title</label>
+            <input type="text" id="uploadTitle" required placeholder="Title" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Description</label>
+            <textarea id="uploadDescription" rows="2" required placeholder="Description" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">External Link URL (Optional)</label>
+            <input type="url" id="uploadLinkUrl" placeholder="https://example.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
+          </div>
+          <button type="submit" id="uploadBtn" class="px-5 py-2.5 rounded-xl bg-brand-600 text-sm font-semibold text-white hover:bg-brand-500 transition">Publish Photo</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- FIREBASE AND APP LOGIC -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvWzQUIxp9TyTkz_Su0m4x8ViDea5gzlg",
+      authDomain: "potohub-47013.firebaseapp.com",
+      projectId: "potohub-47013",
+      storageBucket: "potohub-47013.appspot.com",
+      messagingSenderId: "1044123896393",
+      appId: "1:1044123896393:web:0d1d116b3ef14951f2cd98",
+      measurementId: "G-RH04PZVMWY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const ADMIN_USER = "chathumal";
+    const ADMIN_PASS = "aaaa1234";
+    
+    let photos = [];
+    let isAdminLoggedIn = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPhotosFromFirebase();
+    });
+
+    async function loadPhotosFromFirebase() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "photos"));
+        photos = [];
+        querySnapshot.forEach((doc) => {
+          photos.push({ id: doc.id, ...doc.data() });
+        });
+        renderGallery();
+      } catch (error) {
+        console.error("Error loading photos:", error);
+      }
+    }
+
+    window.checkAdminAccess = function() {
+      if (isAdminLoggedIn) {
+        navigateTo('admin');
+      } else {
+        navigateTo('admin-login');
+      }
+    };
+
+    window.handleAdminLogin = function(event) {
+      event.preventDefault();
+      const user = document.getElementById('adminUsernameInput').value.trim();
+      const pass = document.getElementById('adminPasswordInput').value;
+      
+      if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        isAdminLoggedIn = true;
+        document.getElementById('adminUsernameInput').value = '';
+        document.getElementById('adminPasswordInput').value = '';
+        navigateTo('admin');
+      } else {
+        alert('Incorrect Username or Password!');
+      }
+    };
+
+    window.handlePhotoUpload = async function(event) {
+      event.preventDefault();
+      if (!isAdminLoggedIn) {
+        alert('Unauthorized!');
+        return;
+      }
+
+      const fileInput = document.getElementById('uploadFileInput');
+      const title = document.getElementById('uploadTitle').value.trim();
+      const description = document.getElementById('uploadDescription').value.trim();
+      const linkUrl = document.getElementById('uploadLinkUrl').value.trim();
+      const uploadBtn = document.getElementById('uploadBtn');
+
+      if (fileInput.files.length === 0 || !title) return;
+
+      const file = fileInput.files[0];
+      uploadBtn.textContent = 'Processing Image...';
+      uploadBtn.disabled = true;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64Image = e.target.result;
+
+        try {
+          await addDoc(collection(db, "photos"), {
+            title,
+            description,
+            imageUrl: base64Image,
+            linkUrl,
+            createdAt: new Date().toISOString()
+          });
+
+          alert('Photo successfully uploaded from PC to Firebase Cloud!');
+          document.getElementById('uploadPhotoForm').reset();
+          loadPhotosFromFirebase();
+          navigateTo('gallery');
+        } catch (error) {
+          console.error("Error adding document: ", error);
+          alert('Failed to upload photo.');
+        } finally {
+          uploadBtn.textContent = 'Publish Photo';
+          uploadBtn.disabled = false;
+        }
+      };
+      
+      reader.onerror = function() {
+        alert('Failed to read file.');
+        uploadBtn.textContent = 'Publish Photo';
+        uploadBtn.disabled = false;
+      };
+
+      reader.readAsDataURL(file);
+    };
+
+    function renderGallery() {
+      const grid = document.getElementById('galleryGrid');
+      const countBadge = document.getElementById('galleryPhotoCount');
+      if (!grid) return;
+
+      grid.innerHTML = '';
+      if (countBadge) countBadge.textContent = photos.length;
+
+      if (photos.length === 0) {
+        grid.innerHTML = `<p class="text-slate-400 text-sm col-span-full text-center py-10">No photos found in database yet.</p>`;
+        return;
+      }
+
+      photos.forEach(photo => {
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-2xl overflow-hidden border border-slate-800 flex flex-col';
+        card.innerHTML = `
+          <div class="aspect-video bg-slate-900 overflow-hidden">
+            <img src="${photo.imageUrl}" alt="${escapeHtml(photo.title)}" class="w-full h-full object-cover">
+          </div>
+          <div class="p-4 space-y-2 flex-grow flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-white text-base">${escapeHtml(photo.title)}</h3>
+              <p class="text-slate-400 text-xs mt-1">${escapeHtml(photo.description)}</p>
+            </div>
+            ${photo.linkUrl ? `
+              <div class="pt-2 border-t border-slate-800">
+                <a href="${escapeHtml(photo.linkUrl)}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline">Visit Link &rarr;</a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    window.navigateTo = function(view) {
+      const viewGallery = document.getElementById('viewGallery');
+      const viewAdminLogin = document.getElementById('viewAdminLogin');
+      const viewAdmin = document.getElementById('viewAdmin');
+
+      viewGallery.classList.add('hidden');
+      viewAdminLogin.classList.add('hidden');
+      viewAdmin.classList.add('hidden');
+
+      if (view === 'gallery') {
+        viewGallery.classList.remove('hidden');
+        loadPhotosFromFirebase();
+      } else if (view === 'admin-login') {
+        viewAdminLogin.classList.remove('hidden');
+      } else if (view === 'admin') {
+        viewAdmin.classList.remove('hidden');
+      }
+    };
+
+    function escapeHtml(str) {
+      return str ? str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)) : '';
+    }
+  </script>
+</body>
+</html>
