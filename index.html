@@ -66,7 +66,7 @@
     <section id="viewAdminLogin" class="hidden max-w-md mx-auto mt-12 space-y-6">
       <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 text-center space-y-4">
         <h1 class="text-2xl font-extrabold text-white">Admin Authentication</h1>
-        <p class="text-slate-400 text-sm">Please enter your username and password to access the upload panel.</p>
+        <p class="text-slate-400 text-sm">Please enter your username and password to access the management panel.</p>
         <form onsubmit="handleAdminLogin(event)" class="space-y-3">
           <input type="text" id="adminUsernameInput" required placeholder="Username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
           <input type="password" id="adminPasswordInput" required placeholder="Password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
@@ -79,17 +79,21 @@
     <section id="viewAdmin" class="hidden space-y-6">
       <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-extrabold text-white">Admin Upload Panel</h1>
-          <p class="text-slate-400 text-sm mt-1">Upload local photos from your PC to sync with Firebase Cloud Database.</p>
+          <h1 class="text-3xl font-extrabold text-white">Admin Management Panel</h1>
+          <p class="text-slate-400 text-sm mt-1">Upload, update, or delete photos synced with Firebase Cloud Database.</p>
         </div>
         <button onclick="navigateTo('gallery')" class="px-4 py-2 rounded-xl bg-slate-800 text-sm font-medium text-slate-300 hover:text-white">Logout Admin</button>
       </div>
 
+      <!-- ADD / EDIT PHOTO FORM -->
       <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800">
-        <form id="uploadPhotoForm" onsubmit="handlePhotoUpload(event)" class="space-y-4">
+        <h2 id="formHeading" class="text-xl font-bold text-white mb-4">Publish New Photo</h2>
+        <form id="uploadPhotoForm" onsubmit="handlePhotoFormSubmit(event)" class="space-y-4">
+          <input type="hidden" id="editPhotoId" value="">
+          
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Select Image from PC</label>
-            <input type="file" id="uploadFileInput" accept="image/*" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Select Image from PC <span id="imageOptionalLabel" class="text-slate-500 hidden">(Leave blank to keep existing image)</span></label>
+            <input type="file" id="uploadFileInput" accept="image/*" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-1">Photo Title</label>
@@ -103,8 +107,29 @@
             <label class="block text-xs font-semibold text-slate-300 mb-1">External Link URL (Optional)</label>
             <input type="url" id="uploadLinkUrl" placeholder="https://example.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-200">
           </div>
-          <button type="submit" id="uploadBtn" class="px-5 py-2.5 rounded-xl bg-brand-600 text-sm font-semibold text-white hover:bg-brand-500 transition">Publish Photo</button>
+          
+          <div class="flex items-center gap-3">
+            <button type="submit" id="uploadBtn" class="px-5 py-2.5 rounded-xl bg-brand-600 text-sm font-semibold text-white hover:bg-brand-500 transition">Publish Photo</button>
+            <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden px-5 py-2.5 rounded-xl bg-slate-800 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition">Cancel Edit</button>
+          </div>
         </form>
+      </div>
+
+      <!-- MANAGE EXISTING PHOTOS TABLE -->
+      <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 overflow-x-auto">
+        <h2 class="text-xl font-bold text-white mb-4">Manage Uploaded Photos</h2>
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400">
+              <th class="py-3 px-4">Preview</th>
+              <th class="py-3 px-4">Title & Description</th>
+              <th class="py-3 px-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
       </div>
     </section>
   </main>
@@ -112,7 +137,7 @@
   <!-- FIREBASE AND APP LOGIC -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDvWzQUIxp9TyTkz_Su0m4x8ViDea5gzlg",
@@ -141,10 +166,11 @@
       try {
         const querySnapshot = await getDocs(collection(db, "photos"));
         photos = [];
-        querySnapshot.forEach((doc) => {
-          photos.push({ id: doc.id, ...doc.data() });
+        querySnapshot.forEach((docSnap) => {
+          photos.push({ id: docSnap.id, ...docSnap.data() });
         });
         renderGallery();
+        renderAdminTable();
       } catch (error) {
         console.error("Error loading photos:", error);
       }
@@ -173,30 +199,47 @@
       }
     };
 
-    window.handlePhotoUpload = async function(event) {
+    window.handlePhotoFormSubmit = async function(event) {
       event.preventDefault();
       if (!isAdminLoggedIn) {
         alert('Unauthorized!');
         return;
       }
 
+      const editId = document.getElementById('editPhotoId').value;
       const fileInput = document.getElementById('uploadFileInput');
       const title = document.getElementById('uploadTitle').value.trim();
       const description = document.getElementById('uploadDescription').value.trim();
       const linkUrl = document.getElementById('uploadLinkUrl').value.trim();
       const uploadBtn = document.getElementById('uploadBtn');
 
-      if (fileInput.files.length === 0 || !title) return;
-
-      const file = fileInput.files[0];
-      uploadBtn.textContent = 'Processing Image...';
+      uploadBtn.textContent = editId ? 'Updating...' : 'Uploading...';
       uploadBtn.disabled = true;
 
-      const reader = new FileReader();
-      reader.onload = async function(e) {
-        const base64Image = e.target.result;
+      try {
+        if (editId) {
+          // --- UPDATE EXISTING PHOTO ---
+          let updateData = { title, description, linkUrl };
 
-        try {
+          if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            updateData.imageUrl = await readFileAsBase64(file);
+          }
+
+          await updateDoc(doc(db, "photos", editId), updateData);
+          alert('Photo updated successfully!');
+        } else {
+          // --- CREATE NEW PHOTO ---
+          if (fileInput.files.length === 0) {
+            alert('Please select an image file to upload.');
+            uploadBtn.textContent = 'Publish Photo';
+            uploadBtn.disabled = false;
+            return;
+          }
+
+          const file = fileInput.files[0];
+          const base64Image = await readFileAsBase64(file);
+
           await addDoc(collection(db, "photos"), {
             title,
             description,
@@ -205,26 +248,71 @@
             createdAt: new Date().toISOString()
           });
 
-          alert('Photo successfully uploaded from PC to Firebase Cloud!');
-          document.getElementById('uploadPhotoForm').reset();
-          loadPhotosFromFirebase();
-          navigateTo('gallery');
-        } catch (error) {
-          console.error("Error adding document: ", error);
-          alert('Failed to upload photo.');
-        } finally {
-          uploadBtn.textContent = 'Publish Photo';
-          uploadBtn.disabled = false;
+          alert('Photo successfully published!');
         }
-      };
-      
-      reader.onerror = function() {
-        alert('Failed to read file.');
+
+        resetForm();
+        loadPhotosFromFirebase();
+      } catch (error) {
+        console.error("Error saving photo: ", error);
+        alert('Operation failed. Please try again.');
+      } finally {
         uploadBtn.textContent = 'Publish Photo';
         uploadBtn.disabled = false;
-      };
+      }
+    };
 
-      reader.readAsDataURL(file);
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // --- EDIT PHOTO TRIGGER ---
+    window.editPhoto = function(id) {
+      const photo = photos.find(p => p.id === id);
+      if (!photo) return;
+
+      document.getElementById('editPhotoId').value = photo.id;
+      document.getElementById('uploadTitle').value = photo.title;
+      document.getElementById('uploadDescription').value = photo.description;
+      document.getElementById('uploadLinkUrl').value = photo.linkUrl || '';
+      
+      // Update form UI to edit mode
+      document.getElementById('formHeading').textContent = 'Edit Photo Details';
+      document.getElementById('uploadBtn').textContent = 'Update Photo';
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+      document.getElementById('imageOptionalLabel').classList.remove('hidden');
+
+      // Smooth scroll up to form
+      document.getElementById('uploadPhotoForm').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // --- RESET FORM FUNCTION ---
+    window.resetForm = function() {
+      document.getElementById('uploadPhotoForm').reset();
+      document.getElementById('editPhotoId').value = '';
+      document.getElementById('formHeading').textContent = 'Publish New Photo';
+      document.getElementById('uploadBtn').textContent = 'Publish Photo';
+      document.getElementById('cancelEditBtn').classList.add('hidden');
+      document.getElementById('imageOptionalLabel').classList.add('hidden');
+    };
+
+    // --- DELETE PHOTO FUNCTION ---
+    window.deletePhoto = async function(id) {
+      if (!confirm('Are you sure you want to delete this photo from the database?')) return;
+      
+      try {
+        await deleteDoc(doc(db, "photos", id));
+        alert('Photo deleted successfully!');
+        loadPhotosFromFirebase();
+      } catch (error) {
+        console.error("Error deleting document: ", error);
+        alert('Failed to delete photo.');
+      }
     };
 
     function renderGallery() {
@@ -263,6 +351,36 @@
       });
     }
 
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      if (photos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-400">No photos available in database.</td></tr>`;
+        return;
+      }
+
+      photos.forEach(photo => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-800/60 hover:bg-slate-900/40';
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <img src="${photo.imageUrl}" alt="" class="w-12 h-12 object-cover rounded-lg border border-slate-700">
+          </td>
+          <td class="py-3 px-4">
+            <div class="font-semibold text-white">${escapeHtml(photo.title)}</div>
+            <div class="text-xs text-slate-400 truncate max-w-xs">${escapeHtml(photo.description)}</div>
+          </td>
+          <td class="py-3 px-4 space-x-2">
+            <button onclick="editPhoto('${photo.id}')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition">Edit</button>
+            <button onclick="deletePhoto('${photo.id}')" class="px-3 py-1 bg-red-950/60 hover:bg-red-900/60 text-red-400 rounded-lg text-xs font-medium transition">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
     window.navigateTo = function(view) {
       const viewGallery = document.getElementById('viewGallery');
       const viewAdminLogin = document.getElementById('viewAdminLogin');
@@ -279,6 +397,7 @@
         viewAdminLogin.classList.remove('hidden');
       } else if (view === 'admin') {
         viewAdmin.classList.remove('hidden');
+        loadPhotosFromFirebase();
       }
     };
 
