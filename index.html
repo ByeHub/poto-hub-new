@@ -122,8 +122,8 @@
 
   <!-- VIEW 0: WELCOME / LANDING PAGE -->
   <section id="viewWelcome" class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/25 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/25 rounded-full blur-3xl pointer-events-none"></div>
 
     <div class="glass-card rounded-3xl p-8 sm:p-12 max-w-lg w-full text-center space-y-6 relative z-10 animate-float">
       <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-600 to-purple-400 flex items-center justify-center text-white text-3xl font-black mx-auto neon-glow">P</div>
@@ -271,7 +271,7 @@
           <form id="uploadPhotoForm" onsubmit="handlePhotoFormSubmit(event)" class="space-y-5">
             <input type="hidden" id="editPhotoId" value="">
             <div>
-              <label class="block text-xs font-bold mb-2 uppercase tracking-wide">Select Image <span id="imageOptionalLabel" class="opacity-50 hidden font-normal">(Leave blank to keep existing)</span></label>
+              <label class="block text-xs font-bold mb-2 uppercase tracking-wide">Select Image from PC <span id="imageOptionalLabel" class="opacity-50 hidden font-normal">(Leave blank to keep existing)</span></label>
               <input type="file" id="uploadFileInput" accept="image/*" class="w-full bg-black/10 dark:bg-white/5 border border-[var(--border-color)] rounded-2xl px-4 py-3 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-600 file:text-white file:cursor-pointer">
             </div>
             <div>
@@ -312,7 +312,7 @@
         <div class="glass-card rounded-3xl p-6 sm:p-8 overflow-x-auto">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold">📋 Admin Activity History</h2>
-            <button onclick="clearHistory()" class="px-4 py-1.5 bg-red-950/60 hover:bg-red-900/60 text-red-400 rounded-xl text-xs font-semibold transition">Clear History</button>
+            <button onclick="clearActivityHistory()" class="px-4 py-1.5 bg-red-950/60 hover:bg-red-900/60 text-red-400 rounded-xl text-xs font-semibold transition">Clear History</button>
           </div>
           <table class="w-full text-left border-collapse text-sm">
             <thead>
@@ -440,17 +440,13 @@
 
     let isSignupMode = true;
 
-    // Global click-under ad පාලන විචල්‍යය
     const adUrl = "https://omg10.com/4/11883914";
     let globalAdOpened = false;
 
-    // සයිට් එකේ ඕනෑම තැනක ක්ලික් කළ විට එක් වරක් ඇඩ් එක පෙන්වීමේ පහසුකම (Global Click-under)
     document.addEventListener('click', function(e) {
-      // Admin පැනල් එකේ බටන් හෝ form එක තුළ වැඩ කරන විට ඇඩ් එකෙන් බාධාවක් නොවීමට හෝ අවශ්‍ය පරිදි ක්‍රියාත්මක වීමට
       if (!globalAdOpened && !document.getElementById('mainAppWrapper').classList.contains('hidden')) {
         window.open(adUrl, '_blank');
         globalAdOpened = true;
-        // විනාඩි කිහිපයකට පසු නැවත ඇඩ් එක පෙන්වීම සඳහා රීසෙට් වීම
         setTimeout(() => { globalAdOpened = false; }, 60000);
       }
     });
@@ -529,7 +525,6 @@
     fetchInitialViews();
 
     window.enterSite = async function() {
-      // Enter site බටන් එක ක්ලික් කළ සැණින් ඇඩ් එක විවෘත වීම
       window.open(adUrl, '_blank');
 
       try {
@@ -591,8 +586,8 @@
         document.getElementById('viewAuth').classList.remove('hidden');
       } else if (view === 'admin') {
         if (!checkAdminSession()) {
-          navigateTo('auth');
-          showToast('Access Denied! Only main Admin can access dashboard.', 'error');
+          showToast('Please login as admin first!', 'error');
+          document.getElementById('viewAuth').classList.remove('hidden');
           return;
         }
         document.getElementById('viewAdmin').classList.remove('hidden');
@@ -603,185 +598,310 @@
 
     window.toggleAuthMode = function() {
       isSignupMode = !isSignupMode;
-      const title = document.getElementById('authTitleText');
-      const desc = document.getElementById('authDescText');
+      const titleEl = document.getElementById('authTitleText');
+      const descEl = document.getElementById('authDescText');
       const submitBtn = document.getElementById('authSubmitBtn');
       const switchBtn = document.getElementById('authToggleSwitchBtn');
 
       if (isSignupMode) {
-        title.textContent = 'Create Account';
-        desc.textContent = 'Set up your account details.';
+        titleEl.textContent = 'Create Account';
+        descEl.textContent = 'Set up your account details.';
         submitBtn.textContent = 'Create Account';
         switchBtn.textContent = 'Already have an account? Login here';
       } else {
-        title.textContent = 'Admin Login';
-        desc.textContent = 'Enter admin credentials to manage hub.';
+        titleEl.textContent = 'Admin Login';
+        descEl.textContent = 'Enter admin credentials to manage content.';
         submitBtn.textContent = 'Login';
-        switchBtn.textContent = "Don't have an account? Sign up";
+        switchBtn.textContent = "Don't have an account? Create one";
       }
     }
 
     window.handleAuthSubmit = function(event) {
       event.preventDefault();
       const user = document.getElementById('authUsername').value.trim();
-      const pass = document.getElementById('authPassword').value.trim();
+      const pass = document.getElementById('authPassword').value;
 
       if (isSignupMode) {
-        showToast('Account registered successfully! Please login now.', 'success');
-        isSignupMode = false;
+        showToast('Account created successfully! Please login now.');
         toggleAuthMode();
       } else {
         if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
           sessionStorage.setItem("isAdminLoggedIn", "true");
+          showToast('Admin login successful!');
           updateAuthNavUI();
           navigateTo('admin');
-          showToast('Welcome back, Admin!', 'success');
-          logActivity('Admin Login', 'System Access');
         } else {
-          showToast('Invalid Username or Password!', 'error');
+          showToast('Invalid username or password!', 'error');
         }
       }
     }
 
     window.handleLogout = function() {
       sessionStorage.removeItem("isAdminLoggedIn");
+      showToast('Logged out successfully.');
       updateAuthNavUI();
       navigateTo('gallery');
-      showToast('Logged out successfully.');
-      logActivity('Admin Logout', 'System Exit');
     }
 
+    // --- TELEGRAM NOTIFICATION FUNCTION (PHOTO + TEXT + WEBSITE LINK) ---
+    async function sendTelegramNotification(postTitle, postDescription, file) {
+      const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
+      const chatId = "-1003951414350"; 
+      const siteUrl = "https://byehub.github.io/poto-hub-new/";
+
+      const caption = `🚨 **අලුත් Post එකක් එකතු විය!**\n\n` +
+                      `📌 **Title:** ${postTitle}\n` +
+                      `📝 **Description:** ${postDescription}\n\n` +
+                      `👉 **Website එකෙන් බලන්න:** ${siteUrl}`;
+
+      const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+      formData.append('caption', caption);
+      formData.append('parse_mode', 'Markdown');
+      formData.append('photo', file);
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+          console.log('Telegram group එකට පින්තූරය සහ මැසේජ් එක සාර්ථකව යැවුණා!');
+        } else {
+          console.error('Telegram Error:', data);
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+      }
+    }
+
+    // --- ACTIVITY HISTORY FUNCTIONS ---
+    function logActivity(action, title) {
+      let history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
+      history.unshift({
+        action: action,
+        title: title,
+        date: new Date().toLocaleString()
+      });
+      if (history.length > 50) history = history.slice(0, 50);
+      localStorage.setItem('adminActivityHistory', JSON.stringify(history));
+    }
+
+    window.clearActivityHistory = function() {
+      localStorage.removeItem('adminActivityHistory');
+      renderActivityHistory();
+      showToast('Activity history cleared.');
+    }
+
+    function renderActivityHistory() {
+      const tbody = document.getElementById('activityTableBody');
+      if (!tbody) return;
+      const history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
+      
+      if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center opacity-60">No activity recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = history.map(item => `
+        <tr class="border-b border-[var(--border-color)] hover:bg-white/5 transition">
+          <td class="py-3 px-4 font-semibold text-brand-400">${item.action}</td>
+          <td class="py-3 px-4 font-medium">${item.title}</td>
+          <td class="py-3 px-4 text-xs opacity-75">${item.date}</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- FIREBASE DATA & PHOTO MANAGEMENT ---
     async function loadPhotosFromFirebase() {
       const spinner = document.getElementById('galleryLoadingSpinner');
-      spinner.classList.remove('hidden');
-
+      const grid = document.getElementById('galleryGrid');
+      
       try {
         const querySnapshot = await getDocs(collection(db, "photos"));
         photos = [];
         querySnapshot.forEach((docSnap) => {
           photos.push({ id: docSnap.id, ...docSnap.data() });
         });
-        
-        photos.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        
-        spinner.classList.add('hidden');
-        initSlideshow();
+
+        if (spinner) spinner.style.display = 'none';
         filterPhotos();
-      } catch (e) {
-        console.error("Error loading photos:", e);
-        spinner.innerHTML = `<p class="text-sm font-bold text-red-400">පෝස්ට් ලෝඩ් කරගැනීමේ දෝෂයක් ඇති විය.</p>`;
-        showToast('Failed to load photos from database.', 'error');
+        renderSlideshow();
+      } catch (err) {
+        console.error("Error loading photos:", err);
+        if (spinner) spinner.innerHTML = `<p class="text-red-400 text-sm font-bold">Failed to load photos from database.</p>`;
       }
-    }
-
-    window.setFilter = function(filter) {
-      currentFilter = filter;
-      currentPage = 1;
-
-      document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold glass-card opacity-80 hover:opacity-100 transition';
-      });
-
-      event.target.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold bg-brand-600 text-white transition shadow-md';
-      filterPhotos();
     }
 
     window.filterPhotos = function() {
       const query = document.getElementById('searchInput').value.toLowerCase();
-
+      
       filteredPhotos = photos.filter(p => {
-        const matchesQuery = p.title.toLowerCase().includes(query) || p.description.toLowerCase().includes(query);
-        if (currentFilter === 'Trending') {
-          return matchesQuery && (p.views || 0) > 5;
-        }
+        const matchesQuery = (p.title && p.title.toLowerCase().includes(query)) || 
+                             (p.description && p.description.toLowerCase().includes(query));
+        
+        if (currentFilter === 'All') return matchesQuery;
+        if (currentFilter === 'Trending') return matchesQuery && (p.views || 0) > 5;
         return matchesQuery;
       });
 
       document.getElementById('galleryPhotoCount').textContent = filteredPhotos.length;
-      renderGallery();
+      currentPage = 1;
+      renderGalleryPage();
     }
 
-    function renderGallery() {
+    window.setFilter = function(filterName) {
+      currentFilter = filterName;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.textContent.includes(filterName) || (filterName === 'All' && btn.textContent.includes('All'))) {
+          btn.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold bg-brand-600 text-white transition shadow-md';
+        } else {
+          btn.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold glass-card opacity-80 hover:opacity-100 transition';
+        }
+      });
+      filterPhotos();
+    }
+
+    function renderGalleryPage() {
       const grid = document.getElementById('galleryGrid');
-      const pagination = document.getElementById('paginationContainer');
-      grid.innerHTML = '';
-      pagination.innerHTML = '';
+      const paginationContainer = document.getElementById('paginationContainer');
+      if (!grid) return;
 
       if (filteredPhotos.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-16 text-center opacity-60 font-medium">No photos found.</div>`;
+        grid.innerHTML = `<div class="col-span-full py-16 text-center opacity-60 font-semibold">No photos found.</div>`;
+        paginationContainer.innerHTML = '';
         return;
       }
 
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const pageItems = filteredPhotos.slice(startIndex, endIndex);
+
+      grid.innerHTML = pageItems.map(p => `
+        <div class="glass-card rounded-3xl overflow-hidden gallery-item flex flex-col justify-between">
+          <div class="img-container cursor-pointer" onclick="openLightbox('${p.imageUrl}', '${escapeAttr(p.title)}', '${escapeAttr(p.description)}', '${p.id}', ${p.views || 0})">
+            <img src="${p.imageUrl}" alt="${p.title}" class="gallery-img" loading="lazy">
+          </div>
+          <div class="p-5 space-y-3 flex flex-col flex-grow justify-between">
+            <div class="space-y-1.5">
+              <h3 class="font-bold text-base line-clamp-1">${p.title}</h3>
+              <p class="text-xs opacity-75 line-clamp-2 leading-relaxed">${p.description}</p>
+            </div>
+            <div class="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs font-semibold">
+              <span class="opacity-70 flex items-center gap-1">👁️ <span>${p.views || 0}</span></span>
+              <div class="flex items-center gap-2">
+                ${p.linkUrl ? `<a href="${p.linkUrl}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-brand-600 text-white hover:bg-brand-500 transition">Watch Video</a>` : ''}
+                <button onclick="openLightbox('${p.imageUrl}', '${escapeAttr(p.title)}', '${escapeAttr(p.description)}', '${p.id}', ${p.views || 0})" class="px-3 py-1.5 rounded-xl glass-card hover:bg-white/10 transition">View</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      renderPaginationControls();
+    }
+
+    function renderPaginationControls() {
+      const container = document.getElementById('paginationContainer');
+      if (!container) return;
       const totalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
-      if (currentPage > totalPages) currentPage = totalPages;
-
-      const start = (currentPage - 1) * itemsPerPage;
-      const paginatedItems = filteredPhotos.slice(start, start + itemsPerPage);
-
-      paginatedItems.forEach(photo => {
-        const card = document.createElement('div');
-        card.className = 'gallery-item glass-card rounded-3xl overflow-hidden flex flex-col group';
-        card.innerHTML = `
-          <div class="img-container cursor-pointer" onclick="openLightbox('${photo.id}', '${photo.imageUrl}', '${escapeAttr(photo.title)}', '${escapeAttr(photo.description)}', ${photo.views || 0})">
-            <img src="${photo.imageUrl}" alt="${photo.title}" class="gallery-img" loading="lazy">
-            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3">
-              <span class="px-4 py-2 bg-white/25 backdrop-blur-md rounded-xl text-white text-xs font-bold">🔍 View</span>
-            </div>
-          </div>
-          <div class="p-5 flex flex-col flex-grow space-y-3">
-            <h3 class="font-bold text-base line-clamp-1">${photo.title}</h3>
-            <p class="text-xs opacity-75 line-clamp-2 leading-relaxed flex-grow">${photo.description}</p>
-            <div class="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs font-semibold opacity-80">
-              <span>👁️ ${photo.views || 0} views</span>
-              ${photo.linkUrl ? `<a href="#" onclick="handleWatchVideo(event, '${escapeAttr(photo.linkUrl)}')" class="text-brand-400 hover:underline flex items-center gap-1 font-bold">Watch Video →</a>` : ''}
-            </div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-
-      if (totalPages > 1) {
-        for (let i = 1; i <= totalPages; i++) {
-          const btn = document.createElement('button');
-          btn.textContent = i;
-          btn.className = `w-10 h-10 rounded-xl text-xs font-bold transition ${i === currentPage ? 'bg-brand-600 text-white shadow-md' : 'glass-card opacity-70 hover:opacity-100'}`;
-          btn.onclick = () => { currentPage = i; renderGallery(); window.scrollTo({ top: 300, behavior: 'smooth' }); };
-          pagination.appendChild(btn);
-        }
+      if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
       }
+
+      let html = '';
+      for (let i = 1; i <= totalPages; i++) {
+        const activeClass = i === currentPage ? 'bg-brand-600 text-white shadow-md' : 'glass-card opacity-80 hover:opacity-100';
+        html += `<button onclick="goToPage(${i})" class="w-10 h-10 rounded-xl text-xs font-bold transition ${activeClass}">${i}</button>`;
+      }
+      container.innerHTML = html;
     }
 
-    function escapeAttr(str) {
-      return (str || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    window.goToPage = function(page) {
+      currentPage = page;
+      renderGalleryPage();
+      window.scrollTo({ top: 300, behavior: 'smooth' });
     }
 
-    window.handleWatchVideo = function(event, targetUrl) {
-      event.preventDefault();
-      window.open(targetUrl, '_blank');
+    // --- SLIDESHOW ---
+    function renderSlideshow() {
+      const container = document.getElementById('slideshowContainer');
+      const wrapper = document.getElementById('slideshowWrapper');
+      const dotsContainer = document.getElementById('slideshowDots');
+      if (!container || !wrapper || photos.length === 0) return;
+
+      container.classList.remove('hidden');
+      const slidePhotos = photos.slice(0, 5);
+
+      wrapper.innerHTML = slidePhotos.map((p, idx) => `
+        <div class="absolute inset-0 transition-opacity duration-1000 flex items-center justify-center ${idx === currentSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
+          <img src="${p.imageUrl}" class="w-full h-full object-cover filter blur-sm absolute inset-0 opacity-40 scale-105">
+          <img src="${p.imageUrl}" class="relative max-h-[380px] max-w-full object-contain z-10 shadow-2xl rounded-xl">
+          <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-white z-20 space-y-1">
+            <h3 class="text-lg font-bold">${p.title}</h3>
+            <p class="text-xs opacity-80 max-w-2xl line-clamp-1">${p.description}</p>
+          </div>
+        </div>
+      `).join('');
+
+      dotsContainer.innerHTML = slidePhotos.map((_, idx) => `
+        <button onclick="currentSlide(${idx})" class="w-3 h-3 rounded-full transition-all ${idx === currentSlideIndex ? 'bg-brand-500 w-8' : 'bg-white/40 hover:bg-white/70'}"></button>
+      `).join('');
+
+      if (slideshowInterval) clearInterval(slideshowInterval);
+      slideshowInterval = setInterval(() => {
+        currentSlideIndex = (currentSlideIndex + 1) % slidePhotos.length;
+        renderSlideshow();
+      }, 5000);
     }
 
-    window.openLightbox = async function(id, imageUrl, title, description, views) {
-      currentLightboxUrl = imageUrl;
-      document.getElementById('lightboxImg').src = imageUrl;
+    window.nextSlide = function() {
+      const slidePhotos = photos.slice(0, 5);
+      currentSlideIndex = (currentSlideIndex + 1) % slidePhotos.length;
+      renderSlideshow();
+    }
+
+    window.prevSlide = function() {
+      const slidePhotos = photos.slice(0, 5);
+      currentSlideIndex = (currentSlideIndex - 1 + slidePhotos.length) % slidePhotos.length;
+      renderSlideshow();
+    }
+
+    window.currentSlide = function(idx) {
+      currentSlideIndex = idx;
+      renderSlideshow();
+    }
+
+    // --- LIGHTBOX ---
+    window.openLightbox = async function(url, title, desc, photoId, currentViews) {
+      currentLightboxUrl = url;
+      document.getElementById('lightboxImg').src = url;
       document.getElementById('lightboxTitle').textContent = title;
-      document.getElementById('lightboxDesc').textContent = description;
-      document.getElementById('lightboxViews').textContent = `👁️ Views: ${(views || 0) + 1}`;
-      document.getElementById('lightboxDownloadBtn').href = imageUrl;
+      document.getElementById('lightboxDesc').textContent = desc;
+      document.getElementById('lightboxDownloadBtn').href = url;
+      document.getElementById('lightboxViews').textContent = `👁️ Views: ${(currentViews + 1).toLocaleString()}`;
       document.getElementById('lightboxModal').classList.remove('hidden');
 
-      try {
-        const photoRef = doc(db, "photos", id);
-        await updateDoc(photoRef, { views: increment(1) });
-        const p = photos.find(item => item.id === id);
-        if (p) p.views = (p.views || 0) + 1;
-      } catch (err) {
-        console.error("Failed to increment view:", err);
+      if (photoId) {
+        try {
+          const photoRef = doc(db, "photos", photoId);
+          await updateDoc(photoRef, { views: increment(1) });
+          const target = photos.find(p => p.id === photoId);
+          if (target) target.views = (target.views || 0) + 1;
+        } catch (e) {
+          console.error("Error updating view count:", e);
+        }
       }
     }
 
     window.closeLightbox = function() {
       document.getElementById('lightboxModal').classList.add('hidden');
-      renderGallery();
+      filterPhotos();
     }
 
     window.copyLightboxLink = function() {
@@ -789,139 +909,48 @@
       showToast('Image link copied to clipboard!');
     }
 
-    function initSlideshow() {
-      const container = document.getElementById('slideshowContainer');
-      const wrapper = document.getElementById('slideshowWrapper');
-      const dotsContainer = document.getElementById('slideshowDots');
-
-      const featured = photos.slice(0, 10);
-      if (featured.length === 0) {
-        container.classList.add('hidden');
-        return;
-      }
-
-      container.classList.remove('hidden');
-      wrapper.innerHTML = '';
-      dotsContainer.innerHTML = '';
-
-      currentSlideIndex = 0;
-
-      featured.forEach((p, idx) => {
-        const slide = document.createElement('div');
-        slide.className = `absolute inset-0 transition-opacity duration-1000 flex items-center justify-center p-4 sm:p-6 gap-6 ${idx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}`;
-        
-        let actionBtnHTML = '';
-        if (p.linkUrl) {
-          actionBtnHTML = `<a href="#" onclick="handleWatchVideo(event, '${escapeAttr(p.linkUrl)}')" class="inline-block px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition">Watch Now</a>`;
-        } else {
-          actionBtnHTML = `<button onclick="openLightbox('${p.id}', '${p.imageUrl}', '${escapeAttr(p.title)}', '${escapeAttr(p.description)}', ${p.views || 0})" class="inline-block px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition">View Photo</button>`;
-        }
-
-        slide.innerHTML = `
-          <img src="${p.imageUrl}" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-30 scale-105 pointer-events-none">
-          <div class="relative z-20 w-full max-w-sm sm:max-w-md h-64 sm:h-80 flex items-center justify-center flex-shrink-0">
-            <img src="${p.imageUrl}" alt="${p.title}" class="max-h-full max-w-full object-contain rounded-2xl shadow-2xl border border-white/10">
-          </div>
-          <div class="relative z-20 max-w-md space-y-3 text-left hidden sm:block">
-            <span class="px-3 py-1 bg-brand-600 text-white rounded-full text-xs font-bold uppercase tracking-wider">Featured Hub</span>
-            <h2 class="text-2xl sm:text-3xl font-black text-white leading-tight">${p.title}</h2>
-            <p class="text-xs sm:text-sm text-slate-200 line-clamp-3 leading-relaxed">${p.description}</p>
-            <div class="pt-2">${actionBtnHTML}</div>
-          </div>
-        `;
-        wrapper.appendChild(slide);
-
-        const dot = document.createElement('button');
-        dot.className = `w-3 h-3 rounded-full transition ${idx === 0 ? 'bg-brand-500 w-8' : 'bg-white/40'}`;
-        dot.onclick = () => goToSlide(idx);
-        dotsContainer.appendChild(dot);
-      });
-
-      if (slideshowInterval) clearInterval(slideshowInterval);
-      slideshowInterval = setInterval(() => {
-        currentSlideIndex = (currentSlideIndex + 1) % featured.length;
-        updateSlidePosition(featured.length);
-      }, 5000);
-    }
-
-    window.goToSlide = function(idx) {
-      const featured = photos.slice(0, 10);
-      if (featured.length === 0) return;
-      currentSlideIndex = idx;
-      updateSlidePosition(featured.length);
-    }
-
-    function updateSlidePosition(total) {
-      const wrapper = document.getElementById('slideshowWrapper');
-      const dots = document.getElementById('slideshowDots').children;
-
-      Array.from(wrapper.children).forEach((slide, idx) => {
-        if (idx === currentSlideIndex) {
-          slide.className = 'absolute inset-0 transition-opacity duration-1000 flex items-center justify-center p-4 sm:p-6 gap-6 opacity-100 z-10';
-        } else {
-          slide.className = 'absolute inset-0 transition-opacity duration-1000 flex items-center justify-center p-4 sm:p-6 gap-6 opacity-0 z-0';
-        }
-      });
-
-      Array.from(dots).forEach((dot, idx) => {
-        dot.className = `w-3 h-3 rounded-full transition ${idx === currentSlideIndex ? 'bg-brand-500 w-8' : 'bg-white/40'}`;
-      });
-    }
-
-    window.nextSlide = function() {
-      const featured = photos.slice(0, 10);
-      if (featured.length === 0) return;
-      currentSlideIndex = (currentSlideIndex + 1) % featured.length;
-      updateSlidePosition(featured.length);
-    }
-
-    window.prevSlide = function() {
-      const featured = photos.slice(0, 10);
-      if (featured.length === 0) return;
-      currentSlideIndex = (currentSlideIndex - 1 + featured.length) % featured.length;
-      updateSlidePosition(featured.length);
-    }
-
-    function fileToDataURI(file) {
+    // --- HELPER TO CONVERT PC FILE TO BASE64 ---
+    function convertFileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
         reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
       });
     }
 
+    // --- ADMIN PHOTO UPLOAD / EDIT ---
     window.handlePhotoFormSubmit = async function(event) {
       event.preventDefault();
-      const editId = document.getElementById('editPhotoId').value;
       const fileInput = document.getElementById('uploadFileInput');
       const title = document.getElementById('uploadTitle').value.trim();
       const description = document.getElementById('uploadDescription').value.trim();
       const linkUrl = document.getElementById('uploadLinkUrl').value.trim();
-      const btn = document.getElementById('uploadBtn');
+      const editId = document.getElementById('editPhotoId').value;
+      const submitBtn = document.getElementById('uploadBtn');
 
-      btn.disabled = true;
-      btn.textContent = 'Processing...';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Publishing...';
 
       try {
-        let imageUrl = '';
+        let imageUrl = "";
+        let selectedFile = null;
+        
         if (fileInput.files && fileInput.files[0]) {
-          imageUrl = await fileToDataURI(fileInput.files[0]);
+          selectedFile = fileInput.files[0];
+          imageUrl = await convertFileToBase64(selectedFile);
         }
 
         if (editId) {
-          const docRef = doc(db, "photos", editId);
           const updateData = { title, description, linkUrl };
           if (imageUrl) updateData.imageUrl = imageUrl;
-          await updateDoc(docRef, updateData);
+
+          await updateDoc(doc(db, "photos", editId), updateData);
+          logActivity('UPDATE', title);
           showToast('Photo updated successfully!');
-          logActivity('Update Photo', title);
         } else {
-          if (!imageUrl) {
-            showToast('Please select an image file.', 'error');
-            btn.disabled = false;
-            btn.textContent = 'Publish Photo';
-            return;
+          if (!imageUrl || !selectedFile) {
+            throw new Error("Please select an image file from your PC.");
           }
           await addDoc(collection(db, "photos"), {
             title,
@@ -929,20 +958,79 @@
             linkUrl,
             imageUrl,
             views: 0,
-            createdAt: Date.now()
+            createdAt: new Date().toISOString()
           });
-          showToast('Photo published successfully!');
-          logActivity('Publish Photo', title);
+
+          // Send Telegram Group Notification with Photo & Website Link
+          sendTelegramNotification(title, description, selectedFile);
+
+          logActivity('PUBLISH', title);
+          showToast('Photo published & Telegram group alert sent!');
         }
 
         resetForm();
         loadPhotosFromFirebase();
+        renderAdminTable();
       } catch (err) {
-        console.error("Error saving photo:", err);
-        showToast('Operation failed!', 'error');
+        console.error(err);
+        showToast(err.message || 'Operation failed!', 'error');
       } finally {
-        btn.disabled = false;
-        btn.textContent = editId ? 'Update Photo' : 'Publish Photo';
+        submitBtn.disabled = false;
+        submitBtn.textContent = editId ? 'Update Photo' : 'Publish Photo';
+      }
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminTableBody');
+      if (!tbody) return;
+
+      if (photos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center opacity-60">No photos uploaded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = photos.map(p => `
+        <tr class="border-b border-[var(--border-color)] hover:bg-white/5 transition">
+          <td class="py-3 px-4">
+            <img src="${p.imageUrl}" class="w-12 h-12 object-cover rounded-xl border border-[var(--border-color)]">
+          </td>
+          <td class="py-3 px-4 font-bold">${p.title}</td>
+          <td class="py-3 px-4 opacity-80">${p.views || 0}</td>
+          <td class="py-3 px-4 space-x-2">
+            <button onclick="editPhoto('${p.id}')" class="px-3 py-1.5 bg-brand-600/20 text-brand-400 hover:bg-brand-600 hover:text-white rounded-xl text-xs font-semibold transition">Edit</button>
+            <button onclick="deletePhoto('${p.id}', '${escapeAttr(p.title)}')" class="px-3 py-1.5 bg-red-950/60 text-red-400 hover:bg-red-900/60 rounded-xl text-xs font-semibold transition">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.editPhoto = function(id) {
+      const p = photos.find(item => item.id === id);
+      if (!p) return;
+
+      document.getElementById('editPhotoId').value = p.id;
+      document.getElementById('uploadTitle').value = p.title;
+      document.getElementById('uploadDescription').value = p.description;
+      document.getElementById('uploadLinkUrl').value = p.linkUrl || '';
+      document.getElementById('formHeading').textContent = 'Edit Photo Details';
+      document.getElementById('uploadBtn').textContent = 'Update Photo';
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+      document.getElementById('imageOptionalLabel').classList.remove('hidden');
+      
+      window.scrollTo({ top: 300, behavior: 'smooth' });
+    }
+
+    window.deletePhoto = async function(id, title) {
+      if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+      try {
+        await deleteDoc(doc(db, "photos", id));
+        logActivity('DELETE', title);
+        showToast('Photo deleted successfully.');
+        loadPhotosFromFirebase();
+        renderAdminTable();
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to delete photo.', 'error');
       }
     }
 
@@ -955,109 +1043,10 @@
       document.getElementById('imageOptionalLabel').classList.add('hidden');
     }
 
-    window.renderAdminTable = function() {
-      const tbody = document.getElementById('adminTableBody');
-      tbody.innerHTML = '';
-
-      if (photos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center opacity-60">No photos uploaded yet.</td></tr>`;
-        return;
-      }
-
-      photos.forEach(photo => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-[var(--border-color)] hover:bg-white/5 transition';
-        tr.innerHTML = `
-          <td class="py-3 px-4"><img src="${photo.imageUrl}" class="w-12 h-12 object-cover rounded-xl"></td>
-          <td class="py-3 px-4 font-bold max-w-xs truncate">${photo.title}</td>
-          <td class="py-3 px-4">${photo.views || 0}</td>
-          <td class="py-3 px-4 space-x-2">
-            <button onclick="editPhoto('${photo.id}')" class="px-3 py-1 bg-brand-600/20 text-brand-400 hover:bg-brand-600/40 rounded-xl text-xs font-bold transition">Edit</button>
-            <button onclick="deletePhoto('${photo.id}', '${escapeAttr(photo.title)}')" class="px-3 py-1 bg-red-950/60 text-red-400 hover:bg-red-900/60 rounded-xl text-xs font-bold transition">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    window.editPhoto = function(id) {
-      const photo = photos.find(p => p.id === id);
-      if (!photo) return;
-
-      document.getElementById('editPhotoId').value = photo.id;
-      document.getElementById('uploadTitle').value = photo.title;
-      document.getElementById('uploadDescription').value = photo.description;
-      document.getElementById('uploadLinkUrl').value = photo.linkUrl || '';
-      document.getElementById('formHeading').textContent = 'Edit Photo';
-      document.getElementById('uploadBtn').textContent = 'Update Photo';
-      document.getElementById('cancelEditBtn').classList.remove('hidden');
-      document.getElementById('imageOptionalLabel').classList.remove('hidden');
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    window.deletePhoto = async function(id, title) {
-      if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
-
-      try {
-        await deleteDoc(doc(db, "photos", id));
-        showToast('Photo deleted successfully!');
-        logActivity('Delete Photo', title);
-        loadPhotosFromFirebase();
-        renderAdminTable();
-      } catch (err) {
-        console.error("Error deleting photo:", err);
-        showToast('Failed to delete photo.', 'error');
-      }
-    }
-
-    function logActivity(action, title) {
-      try {
-        let history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
-        history.unshift({
-          action,
-          title,
-          timestamp: new Date().toLocaleString()
-        });
-        if (history.length > 50) history.pop();
-        localStorage.setItem('adminActivityHistory', JSON.stringify(history));
-        renderActivityHistory();
-      } catch (e) {
-        console.error("Error logging activity:", e);
-      }
-    }
-
-    window.renderActivityHistory = function() {
-      const tbody = document.getElementById('activityTableBody');
-      if (!tbody) return;
-
-      try {
-        const history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
-        if (history.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center opacity-60">No activity recorded yet.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = '';
-        history.forEach(item => {
-          const tr = document.createElement('tr');
-          tr.className = 'border-b border-[var(--border-color)] hover:bg-white/5 transition';
-          tr.innerHTML = `
-            <td class="py-3 px-4 font-semibold text-brand-400">${item.action}</td>
-            <td class="py-3 px-4 font-medium">${item.title}</td>
-            <td class="py-3 px-4 opacity-70 text-xs">${item.timestamp}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-      } catch (e) {
-        console.error("Error rendering activity history:", e);
-      }
-    }
-
-    window.clearHistory = function() {
-      localStorage.removeItem('adminActivityHistory');
-      renderActivityHistory();
-      showToast('Activity history cleared.');
+    function escapeAttr(str) {
+      if (!str) return '';
+      str = String(str);
+      return str.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
     }
   </script>
 </body>
