@@ -596,7 +596,6 @@
       }
     }
 
-    // ACTIVITY HISTORY LOGGING
     function logActivity(action, title) {
       const now = new Date().toLocaleString();
       activityHistory.unshift({ action, title, time: now });
@@ -636,10 +635,10 @@
       showToast('Activity history cleared.');
     }
 
-    // TELEGRAM AUTO NOTIFICATION FUNCTION
+    // TELEGRAM AUTO NOTIFICATION FUNCTION (Updated with your Bot Token and Chat ID)
     async function sendTelegramNotification(title, description, linkUrl, photoUrl) {
-      const botToken = '8413083837:AAH0pPz8qE37s8iK...'; // ඔයාගේ Bot Token එක මෙතන නිවැරදිව ඇත
-      const chatId = '-1003951414350'; // ඔයාගේ Group Chat ID එක මෙතන නිවැරදිව ඇත
+      const botToken = '8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I'; 
+      const chatId = '-1003951414350'; 
 
       let message = "🚀 **අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා!** 🔥\n\n";
       message += "📌 **මාතෘකාව:** " + title + "\n\n";
@@ -683,7 +682,6 @@
       }
     }
 
-    // HANDLE PHOTO SUBMIT / UPDATE FORM
     window.handlePhotoFormSubmit = async function(e) {
       e.preventDefault();
       const editId = document.getElementById('editPhotoId').value;
@@ -694,7 +692,6 @@
 
       try {
         if (editId) {
-          // UPDATE EXISTING PHOTO
           showToast('Updating photo...', 'success');
           const photoRef = doc(db, "photos", editId);
           let updateData = { title, description, linkUrl };
@@ -708,7 +705,6 @@
           showToast('Photo successfully updated!', 'success');
           resetForm();
         } else {
-          // PUBLISH NEW PHOTO
           showToast('Publishing photo & sending to Telegram...', 'success');
           let imageUrl = "https://via.placeholder.com/600x400";
           if (fileInput.files && fileInput.files[0]) {
@@ -724,7 +720,6 @@
             views: 0
           });
 
-          // මෙන්න මෙතැනින් අලුත් පෝස්ට් එකක් දැමූ ගමන් ඔටෝ ටෙලිග්‍රෑම් එකට යයි!
           await sendTelegramNotification(title, description, linkUrl, imageUrl);
           
           logActivity('Publish Photo', title);
@@ -824,7 +819,6 @@
       }
     }
 
-    // SLIDESHOW LOGIC
     function initSlideshow() {
       const container = document.getElementById('slideshowContainer');
       if (photos.length === 0) {
@@ -884,7 +878,6 @@
       });
     }
 
-    // FILTER & SEARCH LOGIC
     window.setFilter = function(filter) {
       currentFilter = filter;
       currentPage = 1;
