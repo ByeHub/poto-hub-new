@@ -415,6 +415,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDvWzQUIxp9TyTkz_Su0m4x8ViDea5gzlg",
@@ -428,6 +429,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     let photos = [];
     let filteredPhotos = [];
@@ -636,24 +638,22 @@
       showToast('Activity history cleared.');
     }
 
-    // TELEGRAM AUTO NOTIFICATION FUNCTION
+    // TELEGRAM AUTO NOTIFICATION FUNCTION (TEXT & LINK ONLY)
     async function sendTelegramNotification(title, description, linkUrl) {
       const botToken = '8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I'; 
       const chatId = '-1003951414350'; 
 
-      let message = "🚀 **අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා!** 🔥\n\n";
-      message += "📌 **මාතෘකාව:** " + title + "\n\n";
-      message += "📝 **විස්තරය:** " + description + "\n\n";
+      let message = "🚀 අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා! 🔥\n\n";
+      message += "📌 මාතෘකාව: " + title + "\n\n";
+      message += "📝 විස්තරය: " + description + "\n\n";
       if (linkUrl) {
-        message += "👉 **වැඩි විස්තර සහ ලින්ක් එක මෙතනින් බලන්න:**\n" + linkUrl + "\n\n";
+        message += "👉 වැඩි විස්තර සහ ලින්ක් එක මෙතනින් බලන්න:\n" + linkUrl;
       }
-      message += "#ChathuGamez #SinhalaGaming #PhotoHub";
 
       let apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
       let payload = {
         chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown'
+        text: message
       };
 
       try {
@@ -673,28 +673,26 @@
       }
     }
 
-    // MANUAL TELEGRAM BUTTON FUNCTION FROM ADMIN TABLE
+    // MANUAL TELEGRAM BUTTON FUNCTION (TEXT & LINK ONLY)
     window.sendManualTelegram = async function(title, description, linkUrl) {
       const botToken = '8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I'; 
       const chatId = '-1003951414350'; 
 
-      let message = "📢 **Photo Hub - විශේෂ පෝස්ට් එකක්!** 🔥\n\n";
-      message += "📌 **මාතෘකාව:** " + title + "\n\n";
-      message += "📝 **විස්තරය:** " + description + "\n\n";
+      let message = "📢 Photo Hub - විශේෂ පෝස්ට් එකක්! 🔥\n\n";
+      message += "📌 මාතෘකාව: " + title + "\n\n";
+      message += "📝 විස්තරය: " + description + "\n\n";
       if (linkUrl) {
-        message += "👉 **වැඩි විස්තර මෙතනින් බලන්න:**\n" + linkUrl + "\n\n";
+        message += "👉 වැඩි විස්තර මෙතනින් බලන්න:\n" + linkUrl;
       }
-      message += "#ChathuGamez #SinhalaGaming #PhotoHub";
 
       let apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
       let payload = {
         chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown'
+        text: message
       };
 
       try {
-        showToast("Telegram වෙත යවමින් පවතී...");
+        showToast("Telegram වෙත පණිවිඩය යවමින් පවතී...");
         let response = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -728,7 +726,10 @@
           let updateData = { title, description, linkUrl };
 
           if (fileInput.files && fileInput.files[0]) {
-            updateData.imageUrl = URL.createObjectURL(fileInput.files[0]);
+            const file = fileInput.files[0];
+            const fileRef = storageRef(storage, `photos/${Date.now()}_${file.name}`);
+            await uploadBytes(fileRef, file);
+            updateData.imageUrl = await getDownloadURL(fileRef);
           }
 
           await updateDoc(photoRef, updateData);
@@ -736,11 +737,20 @@
           showToast('Photo successfully updated!', 'success');
           resetForm();
         } else {
-          showToast('Publishing photo & sending to Telegram...', 'success');
-          let imageUrl = "https://via.placeholder.com/600x400";
-          if (fileInput.files && fileInput.files[0]) {
-            imageUrl = URL.createObjectURL(fileInput.files[0]);
+          showToast('Uploading image to Firebase Storage...', 'success');
+          
+          if (!fileInput.files || !fileInput.files[0]) {
+            showToast('Please select an image file!', 'error');
+            return;
           }
+
+          const file = fileInput.files[0];
+          const fileRef = storageRef(storage, `photos/${Date.now()}_${file.name}`);
+          
+          await uploadBytes(fileRef, file);
+          const imageUrl = await getDownloadURL(fileRef);
+
+          showToast('Publishing photo & sending to Telegram...', 'success');
 
           await addDoc(collection(db, "photos"), {
             title: title,
@@ -761,7 +771,7 @@
         loadPhotosFromFirebase();
       } catch (err) {
         console.error("Error saving photo:", err);
-        showToast('Failed to save photo', 'error');
+        showToast('Failed to save photo: ' + err.message, 'error');
       }
     };
 
@@ -815,7 +825,6 @@
       }
 
       photos.forEach(photo => {
-        // Escaping quotes for safety in inline onclick function parameters
         const safeTitle = photo.title.replace(/'/g, "\\'");
         const safeDesc = (photo.description || '').replace(/'/g, "\\'").replace(/\n/g, " ");
         const safeLink = photo.linkUrl || '';
@@ -1038,7 +1047,6 @@
     }
 
     window.handleLogout = function() {
-      sessionStorage.getItem("isAdminLoggedIn");
       sessionStorage.removeItem("isAdminLoggedIn");
       showToast("Logged out successfully.");
       navigateTo('gallery');
