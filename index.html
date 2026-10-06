@@ -598,304 +598,251 @@
 
     window.toggleAuthMode = function() {
       isSignupMode = !isSignupMode;
-      const titleEl = document.getElementById('authTitleText');
-      const descEl = document.getElementById('authDescText');
-      const submitBtn = document.getElementById('authSubmitBtn');
-      const switchBtn = document.getElementById('authToggleSwitchBtn');
+      const title = document.getElementById('authTitleText');
+      const desc = document.getElementById('authDescText');
+      const btn = document.getElementById('authSubmitBtn');
+      const toggleBtn = document.getElementById('authToggleSwitchBtn');
 
       if (isSignupMode) {
-        titleEl.textContent = 'Create Account';
-        descEl.textContent = 'Set up your account details.';
-        submitBtn.textContent = 'Create Account';
-        switchBtn.textContent = 'Already have an account? Login here';
+        title.textContent = "Create Account";
+        desc.textContent = "Set up your account details.";
+        btn.textContent = "Create Account";
+        toggleBtn.textContent = "Already have an account? Login here";
       } else {
-        titleEl.textContent = 'Admin Login';
-        descEl.textContent = 'Enter admin credentials to manage content.';
-        submitBtn.textContent = 'Login';
-        switchBtn.textContent = "Don't have an account? Create one";
+        title.textContent = "Admin Login";
+        desc.textContent = "Enter admin credentials to manage site.";
+        btn.textContent = "Login";
+        toggleBtn.textContent = "Need to create account? Sign up here";
       }
     }
 
-    window.handleAuthSubmit = function(event) {
-      event.preventDefault();
-      const user = document.getElementById('authUsername').value.trim();
-      const pass = document.getElementById('authPassword').value;
+    window.handleAuthSubmit = function(e) {
+      e.preventDefault();
+      const u = document.getElementById('authUsername').value.trim();
+      const p = document.getElementById('authPassword').value.trim();
 
       if (isSignupMode) {
-        showToast('Account created successfully! Please login now.');
+        showToast('Account created successfully! Please login.');
         toggleAuthMode();
+        document.getElementById('authUsername').value = '';
+        document.getElementById('authPassword').value = '';
       } else {
-        if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
+        if (u === ADMIN_USERNAME && p === ADMIN_PASSWORD) {
           sessionStorage.setItem("isAdminLoggedIn", "true");
-          showToast('Admin login successful!');
+          showToast('Login successful!');
           updateAuthNavUI();
           navigateTo('admin');
         } else {
-          showToast('Invalid username or password!', 'error');
+          showToast('Invalid admin username or password!', 'error');
         }
       }
     }
 
     window.handleLogout = function() {
       sessionStorage.removeItem("isAdminLoggedIn");
-      showToast('Logged out successfully.');
       updateAuthNavUI();
       navigateTo('gallery');
+      showToast('Logged out successfully.');
     }
 
-    // --- TELEGRAM NOTIFICATION FUNCTION (PHOTO + TEXT + WEBSITE LINK) ---
-    async function sendTelegramNotification(postTitle, postDescription, file) {
-      const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
-      const chatId = "-1003951414350"; 
-      const siteUrl = "https://byehub.github.io/poto-hub-new/";
-
-      const caption = `🚨 **අලුත් Post එකක් එකතු විය!**\n\n` +
-                      `📌 **Title:** ${postTitle}\n` +
-                      `📝 **Description:** ${postDescription}\n\n` +
-                      `👉 **Website එකෙන් බලන්න:** ${siteUrl}`;
-
-      const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
-
-      const formData = new FormData();
-      formData.append('chat_id', chatId);
-      formData.append('caption', caption);
-      formData.append('parse_mode', 'Markdown');
-      formData.append('photo', file);
-
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          body: formData
-        });
-
-        const data = await response.json();
-        if (data.ok) {
-          console.log('Telegram group එකට පින්තූරය සහ මැසේජ් එක සාර්ථකව යැවුණා!');
-        } else {
-          console.error('Telegram Error:', data);
-        }
-      } catch (error) {
-        console.error('Network Error:', error);
-      }
-    }
-
-    // --- ACTIVITY HISTORY FUNCTIONS ---
-    function logActivity(action, title) {
-      let history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
-      history.unshift({
-        action: action,
-        title: title,
-        date: new Date().toLocaleString()
-      });
-      if (history.length > 50) history = history.slice(0, 50);
-      localStorage.setItem('adminActivityHistory', JSON.stringify(history));
-    }
-
-    window.clearActivityHistory = function() {
-      localStorage.removeItem('adminActivityHistory');
-      renderActivityHistory();
-      showToast('Activity history cleared.');
-    }
-
-    function renderActivityHistory() {
-      const tbody = document.getElementById('activityTableBody');
-      if (!tbody) return;
-      const history = JSON.parse(localStorage.getItem('adminActivityHistory') || '[]');
-      
-      if (history.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center opacity-60">No activity recorded yet.</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = history.map(item => `
-        <tr class="border-b border-[var(--border-color)] hover:bg-white/5 transition">
-          <td class="py-3 px-4 font-semibold text-brand-400">${item.action}</td>
-          <td class="py-3 px-4 font-medium">${item.title}</td>
-          <td class="py-3 px-4 text-xs opacity-75">${item.date}</td>
-        </tr>
-      `).join('');
-    }
-
-    // --- FIREBASE DATA & PHOTO MANAGEMENT ---
+    // --- FIREBASE PHOTO FUNCTIONS & TELEGRAM BOT INTEGRATION ---
     async function loadPhotosFromFirebase() {
-      const spinner = document.getElementById('galleryLoadingSpinner');
-      const grid = document.getElementById('galleryGrid');
-      
       try {
         const querySnapshot = await getDocs(collection(db, "photos"));
         photos = [];
         querySnapshot.forEach((docSnap) => {
           photos.push({ id: docSnap.id, ...docSnap.data() });
         });
-
-        if (spinner) spinner.style.display = 'none';
+        photos.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        
+        document.getElementById('galleryLoadingSpinner').classList.add('hidden');
         filterPhotos();
         renderSlideshow();
-      } catch (err) {
-        console.error("Error loading photos:", err);
-        if (spinner) spinner.innerHTML = `<p class="text-red-400 text-sm font-bold">Failed to load photos from database.</p>`;
+      } catch (e) {
+        console.error("Error loading photos:", e);
+        document.getElementById('galleryLoadingSpinner').innerHTML = '<p class="text-red-400 font-bold">Failed to load photos. Please check connection.</p>';
       }
     }
 
-    window.filterPhotos = function() {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      
-      filteredPhotos = photos.filter(p => {
-        const matchesQuery = (p.title && p.title.toLowerCase().includes(query)) || 
-                             (p.description && p.description.toLowerCase().includes(query));
-        
-        if (currentFilter === 'All') return matchesQuery;
-        if (currentFilter === 'Trending') return matchesQuery && (p.views || 0) > 5;
-        return matchesQuery;
-      });
-
-      document.getElementById('galleryPhotoCount').textContent = filteredPhotos.length;
-      currentPage = 1;
-      renderGalleryPage();
-    }
-
-    window.setFilter = function(filterName) {
-      currentFilter = filterName;
+    window.setFilter = function(filter) {
+      currentFilter = filter;
       document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.textContent.includes(filterName) || (filterName === 'All' && btn.textContent.includes('All'))) {
-          btn.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold bg-brand-600 text-white transition shadow-md';
-        } else {
-          btn.className = 'filter-btn px-5 py-2.5 rounded-xl text-xs font-bold glass-card opacity-80 hover:opacity-100 transition';
-        }
+        btn.className = "filter-btn px-5 py-2.5 rounded-xl text-xs font-bold glass-card opacity-80 hover:opacity-100 transition";
       });
+      event.target.className = "filter-btn px-5 py-2.5 rounded-xl text-xs font-bold bg-brand-600 text-white transition shadow-md";
+      currentPage = 1;
       filterPhotos();
     }
 
-    function renderGalleryPage() {
+    window.filterPhotos = function() {
+      const searchTxt = document.getElementById('searchInput').value.toLowerCase();
+      filteredPhotos = photos.filter(item => {
+        const matchesSearch = (item.title || '').toLowerCase().includes(searchTxt) || (item.description || '').toLowerCase().includes(searchTxt);
+        if (currentFilter === 'Trending') {
+          return matchesSearch && (item.views || 0) >= 5;
+        }
+        return matchesSearch;
+      });
+
+      document.getElementById('galleryPhotoCount').textContent = filteredPhotos.length;
+      renderGalleryGrid();
+    }
+
+    function renderGalleryGrid() {
       const grid = document.getElementById('galleryGrid');
-      const paginationContainer = document.getElementById('paginationContainer');
-      if (!grid) return;
+      const pagination = document.getElementById('paginationContainer');
+      grid.innerHTML = '';
+      pagination.innerHTML = '';
 
       if (filteredPhotos.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-16 text-center opacity-60 font-semibold">No photos found.</div>`;
-        paginationContainer.innerHTML = '';
+        grid.innerHTML = `<div class="col-span-full py-20 text-center opacity-60"><p class="text-base font-semibold">No photos found matching your criteria.</p></div>`;
         return;
       }
 
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const pageItems = filteredPhotos.slice(startIndex, endIndex);
+      const totalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
+      if (currentPage > totalPages) currentPage = totalPages;
 
-      grid.innerHTML = pageItems.map(p => `
-        <div class="glass-card rounded-3xl overflow-hidden gallery-item flex flex-col justify-between">
-          <div class="img-container cursor-pointer" onclick="openLightbox('${p.imageUrl}', '${escapeAttr(p.title)}', '${escapeAttr(p.description)}', '${p.id}', ${p.views || 0})">
-            <img src="${p.imageUrl}" alt="${p.title}" class="gallery-img" loading="lazy">
+      const start = (currentPage - 1) * itemsPerPage;
+      const paginatedItems = filteredPhotos.slice(start, start + itemsPerPage);
+
+      paginatedItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'gallery-item glass-card rounded-2xl overflow-hidden flex flex-col justify-between';
+        
+        const videoBtnHtml = item.linkUrl ? `<a href="${item.linkUrl}" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md"><span>🎬</span> Watch Video</a>` : '';
+
+        card.innerHTML = `
+          <div class="img-container cursor-pointer" onclick="openLightbox('${item.imageUrl}', '${item.title.replace(/'/g, "\\'")}', '${item.description.replace(/'/g, "\\'")}', '${item.id}', ${item.views || 0})">
+            <img src="${item.imageUrl}" alt="${item.title}" class="gallery-img" loading="lazy">
           </div>
-          <div class="p-5 space-y-3 flex flex-col flex-grow justify-between">
-            <div class="space-y-1.5">
-              <h3 class="font-bold text-base line-clamp-1">${p.title}</h3>
-              <p class="text-xs opacity-75 line-clamp-2 leading-relaxed">${p.description}</p>
+          <div class="p-5 flex flex-col flex-grow justify-between space-y-3">
+            <div class="space-y-1">
+              <h3 class="font-bold text-base line-clamp-1">${item.title}</h3>
+              <p class="text-xs opacity-75 line-clamp-2">${item.description}</p>
             </div>
-            <div class="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs font-semibold">
-              <span class="opacity-70 flex items-center gap-1">👁️ <span>${p.views || 0}</span></span>
+            <div class="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
+              <span class="opacity-70 font-semibold">👁️ ${item.views || 0} views</span>
               <div class="flex items-center gap-2">
-                ${p.linkUrl ? `<a href="${p.linkUrl}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-brand-600 text-white hover:bg-brand-500 transition">Watch Video</a>` : ''}
-                <button onclick="openLightbox('${p.imageUrl}', '${escapeAttr(p.title)}', '${escapeAttr(p.description)}', '${p.id}', ${p.views || 0})" class="px-3 py-1.5 rounded-xl glass-card hover:bg-white/10 transition">View</button>
+                ${videoBtnHtml}
+                <button onclick="openLightbox('${item.imageUrl}', '${item.title.replace(/'/g, "\\'")}', '${item.description.replace(/'/g, "\\'")}', '${item.id}', ${item.views || 0})" class="px-3.5 py-2 glass-card hover:bg-white/10 text-white rounded-xl font-bold transition">View</button>
               </div>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+        grid.appendChild(card);
+      });
 
-      renderPaginationControls();
-    }
-
-    function renderPaginationControls() {
-      const container = document.getElementById('paginationContainer');
-      if (!container) return;
-      const totalPages = Math.ceil(filteredPhotos.length / itemsPerPage);
-      if (totalPages <= 1) {
-        container.innerHTML = '';
-        return;
+      if (totalPages > 1) {
+        for (let i = 1; i <= totalPages; i++) {
+          const btn = document.createElement('button');
+          btn.className = `px-4 py-2 rounded-xl text-xs font-bold transition ${i === currentPage ? 'bg-brand-600 text-white shadow-md' : 'glass-card hover:bg-white/10'}`;
+          btn.textContent = i;
+          btn.onclick = () => { currentPage = i; renderGalleryGrid(); window.scrollTo({ top: 300, behavior: 'smooth' }); };
+          pagination.appendChild(btn);
+        }
       }
-
-      let html = '';
-      for (let i = 1; i <= totalPages; i++) {
-        const activeClass = i === currentPage ? 'bg-brand-600 text-white shadow-md' : 'glass-card opacity-80 hover:opacity-100';
-        html += `<button onclick="goToPage(${i})" class="w-10 h-10 rounded-xl text-xs font-bold transition ${activeClass}">${i}</button>`;
-      }
-      container.innerHTML = html;
     }
 
-    window.goToPage = function(page) {
-      currentPage = page;
-      renderGalleryPage();
-      window.scrollTo({ top: 300, behavior: 'smooth' });
-    }
-
-    // --- SLIDESHOW ---
     function renderSlideshow() {
       const container = document.getElementById('slideshowContainer');
       const wrapper = document.getElementById('slideshowWrapper');
       const dotsContainer = document.getElementById('slideshowDots');
-      if (!container || !wrapper || photos.length === 0) return;
+      wrapper.innerHTML = '';
+      dotsContainer.innerHTML = '';
+
+      const topSlides = photos.slice(0, 5);
+      if (topSlides.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
 
       container.classList.remove('hidden');
-      const slidePhotos = photos.slice(0, 5);
 
-      wrapper.innerHTML = slidePhotos.map((p, idx) => `
-        <div class="absolute inset-0 transition-opacity duration-1000 flex items-center justify-center ${idx === currentSlideIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
-          <img src="${p.imageUrl}" class="w-full h-full object-cover filter blur-sm absolute inset-0 opacity-40 scale-105">
-          <img src="${p.imageUrl}" class="relative max-h-[380px] max-w-full object-contain z-10 shadow-2xl rounded-xl">
-          <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-white z-20 space-y-1">
-            <h3 class="text-lg font-bold">${p.title}</h3>
-            <p class="text-xs opacity-80 max-w-2xl line-clamp-1">${p.description}</p>
+      topSlides.forEach((item, index) => {
+        const slide = document.createElement('div');
+        slide.className = `absolute inset-0 transition-opacity duration-1000 flex items-center justify-center p-4 sm:p-8 ${index === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}`;
+        slide.innerHTML = `
+          <!-- Background Blur Image -->
+          <img src="${item.imageUrl}" class="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-30 pointer-events-none">
+          
+          <!-- Content layout: Main image on left/center, text info alongside -->
+          <div class="relative z-10 max-w-4xl w-full mx-auto flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 h-full">
+            <div class="w-full sm:w-1/2 h-48 sm:h-64 rounded-2xl overflow-hidden glass-card shadow-2xl flex items-center justify-center bg-black/40">
+              <img src="${item.imageUrl}" class="w-full h-full object-contain">
+            </div>
+            <div class="w-full sm:w-1/2 text-center sm:text-left space-y-3">
+              <span class="px-3 py-1 bg-brand-600 text-white text-xs font-bold rounded-full shadow-md inline-block">🔥 Featured Showcase</span>
+              <h2 class="text-2xl sm:text-3xl font-black text-white line-clamp-1">${item.title}</h2>
+              <p class="text-xs sm:text-sm text-slate-200 line-clamp-2">${item.description}</p>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+        wrapper.appendChild(slide);
 
-      dotsContainer.innerHTML = slidePhotos.map((_, idx) => `
-        <button onclick="currentSlide(${idx})" class="w-3 h-3 rounded-full transition-all ${idx === currentSlideIndex ? 'bg-brand-500 w-8' : 'bg-white/40 hover:bg-white/70'}"></button>
-      `).join('');
+        const dot = document.createElement('button');
+        dot.className = `w-3 h-3 rounded-full transition ${index === 0 ? 'bg-brand-500 w-8' : 'bg-white/40 hover:bg-white/70'}`;
+        dot.onclick = () => { currentSlideIndex = index; updateSlideshow(); };
+        dotsContainer.appendChild(dot);
+      });
 
       if (slideshowInterval) clearInterval(slideshowInterval);
       slideshowInterval = setInterval(() => {
-        currentSlideIndex = (currentSlideIndex + 1) % slidePhotos.length;
-        renderSlideshow();
+        currentSlideIndex = (currentSlideIndex + 1) % topSlides.length;
+        updateSlideshow();
       }, 5000);
     }
 
+    function updateSlideshow() {
+      const slides = document.querySelectorAll('#slideshowWrapper > div');
+      const dots = document.querySelectorAll('#slideshowDots > button');
+      slides.forEach((slide, idx) => {
+        if (idx === currentSlideIndex) {
+          slide.classList.remove('opacity-0', 'z-0');
+          slide.classList.add('opacity-100', 'z-10');
+        } else {
+          slide.classList.remove('opacity-100', 'z-10');
+          slide.classList.add('opacity-0', 'z-0');
+        }
+      });
+      dots.forEach((dot, idx) => {
+        if (idx === currentSlideIndex) {
+          dot.className = "w-8 h-3 rounded-full bg-brand-500 transition";
+        } else {
+          dot.className = "w-3 h-3 rounded-full bg-white/40 hover:bg-white/70 transition";
+        }
+      });
+    }
+
     window.nextSlide = function() {
-      const slidePhotos = photos.slice(0, 5);
-      currentSlideIndex = (currentSlideIndex + 1) % slidePhotos.length;
-      renderSlideshow();
+      const topSlides = photos.slice(0, 5);
+      if (topSlides.length === 0) return;
+      currentSlideIndex = (currentSlideIndex + 1) % topSlides.length;
+      updateSlideshow();
     }
 
     window.prevSlide = function() {
-      const slidePhotos = photos.slice(0, 5);
-      currentSlideIndex = (currentSlideIndex - 1 + slidePhotos.length) % slidePhotos.length;
-      renderSlideshow();
+      const topSlides = photos.slice(0, 5);
+      if (topSlides.length === 0) return;
+      currentSlideIndex = (currentSlideIndex - 1 + topSlides.length) % topSlides.length;
+      updateSlideshow();
     }
 
-    window.currentSlide = function(idx) {
-      currentSlideIndex = idx;
-      renderSlideshow();
-    }
-
-    // --- LIGHTBOX ---
-    window.openLightbox = async function(url, title, desc, photoId, currentViews) {
-      currentLightboxUrl = url;
-      document.getElementById('lightboxImg').src = url;
+    window.openLightbox = async function(imageUrl, title, description, docId, currentViews) {
+      currentLightboxUrl = imageUrl;
+      document.getElementById('lightboxImg').src = imageUrl;
       document.getElementById('lightboxTitle').textContent = title;
-      document.getElementById('lightboxDesc').textContent = desc;
-      document.getElementById('lightboxDownloadBtn').href = url;
+      document.getElementById('lightboxDesc').textContent = description;
+      document.getElementById('lightboxDownloadBtn').href = imageUrl;
       document.getElementById('lightboxViews').textContent = `👁️ Views: ${(currentViews + 1).toLocaleString()}`;
       document.getElementById('lightboxModal').classList.remove('hidden');
 
-      if (photoId) {
-        try {
-          const photoRef = doc(db, "photos", photoId);
-          await updateDoc(photoRef, { views: increment(1) });
-          const target = photos.find(p => p.id === photoId);
-          if (target) target.views = (target.views || 0) + 1;
-        } catch (e) {
-          console.error("Error updating view count:", e);
-        }
+      try {
+        const docRef = doc(db, "photos", docId);
+        await updateDoc(docRef, { views: increment(1) });
+        const targetPhoto = photos.find(p => p.id === docId);
+        if (targetPhoto) targetPhoto.views = (targetPhoto.views || 0) + 1;
+      } catch (e) {
+        console.error("Error incrementing view count:", e);
       }
     }
 
@@ -909,145 +856,217 @@
       showToast('Image link copied to clipboard!');
     }
 
-    // --- HELPER TO CONVERT PC FILE TO BASE64 ---
-    function convertFileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    // --- ADMIN PHOTO UPLOAD / EDIT ---
-    window.handlePhotoFormSubmit = async function(event) {
-      event.preventDefault();
+    // --- ADMIN PANEL FUNCTIONS & TELEGRAM AUTO MESSAGE WITH LINK ---
+    window.handlePhotoFormSubmit = async function(e) {
+      e.preventDefault();
       const fileInput = document.getElementById('uploadFileInput');
       const title = document.getElementById('uploadTitle').value.trim();
       const description = document.getElementById('uploadDescription').value.trim();
       const linkUrl = document.getElementById('uploadLinkUrl').value.trim();
       const editId = document.getElementById('editPhotoId').value;
-      const submitBtn = document.getElementById('uploadBtn');
+      const uploadBtn = document.getElementById('uploadBtn');
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Publishing...';
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "Processing...";
 
       try {
         let imageUrl = "";
-        let selectedFile = null;
-        
+
         if (fileInput.files && fileInput.files[0]) {
-          selectedFile = fileInput.files[0];
-          imageUrl = await convertFileToBase64(selectedFile);
+          const file = fileInput.files[0];
+          imageUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+          });
         }
 
         if (editId) {
-          const updateData = { title, description, linkUrl };
-          if (imageUrl) updateData.imageUrl = imageUrl;
+          const existing = photos.find(p => p.id === editId);
+          if (!imageUrl && existing) imageUrl = existing.imageUrl;
 
-          await updateDoc(doc(db, "photos", editId), updateData);
-          logActivity('UPDATE', title);
+          const docRef = doc(db, "photos", editId);
+          await updateDoc(docRef, { title, description, linkUrl, imageUrl });
           showToast('Photo updated successfully!');
+          logAdminActivity('Updated Post', title);
+          resetForm();
         } else {
-          if (!imageUrl || !selectedFile) {
-            throw new Error("Please select an image file from your PC.");
+          if (!imageUrl) {
+            showToast('Please select an image file!', 'error');
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "Publish Photo";
+            return;
           }
-          await addDoc(collection(db, "photos"), {
+
+          const newDoc = {
             title,
             description,
             linkUrl,
             imageUrl,
             views: 0,
-            createdAt: new Date().toISOString()
-          });
+            createdAt: Date.now()
+          };
 
-          // Send Telegram Group Notification with Photo & Website Link
-          sendTelegramNotification(title, description, selectedFile);
+          await addDoc(collection(db, "photos"), newDoc);
+          showToast('Photo published successfully!');
+          logAdminActivity('Published Post', title);
 
-          logActivity('PUBLISH', title);
-          showToast('Photo published & Telegram group alert sent!');
+          // ---------------------------------------------------------
+          // TELEGRAM BOT AUTO MESSAGE SENDER (Video Link එකත් සමඟ)
+          // ---------------------------------------------------------
+          const botToken = "8156108170:AAH-s-9vXNq4aT-2pW9mD7rV8X5Y3Z1_2A0"; 
+          const chatId = "@Hodamaewa"; 
+
+          let telegramText = `🚨 අලුත් Post එකක් එකතු විය!\n\n`;
+          telegramText += `📌 Title: ${title}\n`;
+          telegramText += `📝 Description: ${description}\n`;
+          
+          if (linkUrl) {
+            telegramText += `🎬 Watch Video / Link: ${linkUrl}\n`;
+          }
+
+          telegramText += `\n👉 Website එකෙන් බලන්න: https://byehub.github.io/poto-hub-new/`;
+
+          try {
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: telegramText
+              })
+            });
+            console.log("Telegram message sent successfully with link!");
+          } catch (telErr) {
+            console.error("Failed to send Telegram notification:", telErr);
+          }
+          // ---------------------------------------------------------
+
+          document.getElementById('uploadPhotoForm').reset();
         }
 
-        resetForm();
-        loadPhotosFromFirebase();
+        await loadPhotosFromFirebase();
         renderAdminTable();
       } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Operation failed!', 'error');
+        console.error("Error saving photo:", err);
+        showToast('Failed to save photo!', 'error');
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = editId ? 'Update Photo' : 'Publish Photo';
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = editId ? "Update Photo" : "Publish Photo";
       }
     }
 
     function renderAdminTable() {
       const tbody = document.getElementById('adminTableBody');
-      if (!tbody) return;
+      tbody.innerHTML = '';
 
       if (photos.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center opacity-60">No photos uploaded yet.</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = photos.map(p => `
-        <tr class="border-b border-[var(--border-color)] hover:bg-white/5 transition">
+      photos.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-[var(--border-color)] hover:bg-white/5 transition';
+        tr.innerHTML = `
+          <td class="py-3 px-4"><img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-xl border border-[var(--border-color)]"></td>
+          <td class="py-3 px-4 font-semibold">${item.title}</td>
+          <td class="py-3 px-4 opacity-80">${item.views || 0}</td>
           <td class="py-3 px-4">
-            <img src="${p.imageUrl}" class="w-12 h-12 object-cover rounded-xl border border-[var(--border-color)]">
+            <div class="flex items-center gap-2">
+              <button onclick="editPhoto('${item.id}')" class="px-3 py-1.5 bg-brand-600/20 text-brand-400 hover:bg-brand-600/30 rounded-xl text-xs font-bold transition">Edit</button>
+              <button onclick="deletePhotoItem('${item.id}', '${item.title.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-red-950/60 text-red-400 hover:bg-red-900/60 rounded-xl text-xs font-bold transition">Delete</button>
+            </div>
           </td>
-          <td class="py-3 px-4 font-bold">${p.title}</td>
-          <td class="py-3 px-4 opacity-80">${p.views || 0}</td>
-          <td class="py-3 px-4 space-x-2">
-            <button onclick="editPhoto('${p.id}')" class="px-3 py-1.5 bg-brand-600/20 text-brand-400 hover:bg-brand-600 hover:text-white rounded-xl text-xs font-semibold transition">Edit</button>
-            <button onclick="deletePhoto('${p.id}', '${escapeAttr(p.title)}')" class="px-3 py-1.5 bg-red-950/60 text-red-400 hover:bg-red-900/60 rounded-xl text-xs font-semibold transition">Delete</button>
-          </td>
-        </tr>
-      `).join('');
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     window.editPhoto = function(id) {
-      const p = photos.find(item => item.id === id);
-      if (!p) return;
+      const item = photos.find(p => p.id === id);
+      if (!item) return;
 
-      document.getElementById('editPhotoId').value = p.id;
-      document.getElementById('uploadTitle').value = p.title;
-      document.getElementById('uploadDescription').value = p.description;
-      document.getElementById('uploadLinkUrl').value = p.linkUrl || '';
-      document.getElementById('formHeading').textContent = 'Edit Photo Details';
-      document.getElementById('uploadBtn').textContent = 'Update Photo';
+      document.getElementById('editPhotoId').value = item.id;
+      document.getElementById('uploadTitle').value = item.title;
+      document.getElementById('uploadDescription').value = item.description;
+      document.getElementById('uploadLinkUrl').value = item.linkUrl || '';
+      document.getElementById('uploadFileInput').value = '';
+      
+      document.getElementById('formHeading').textContent = "Edit Photo Post";
+      document.getElementById('uploadBtn').textContent = "Update Photo";
       document.getElementById('cancelEditBtn').classList.remove('hidden');
       document.getElementById('imageOptionalLabel').classList.remove('hidden');
-      
-      window.scrollTo({ top: 300, behavior: 'smooth' });
-    }
 
-    window.deletePhoto = async function(id, title) {
-      if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
-      try {
-        await deleteDoc(doc(db, "photos", id));
-        logActivity('DELETE', title);
-        showToast('Photo deleted successfully.');
-        loadPhotosFromFirebase();
-        renderAdminTable();
-      } catch (err) {
-        console.error(err);
-        showToast('Failed to delete photo.', 'error');
-      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     window.resetForm = function() {
       document.getElementById('uploadPhotoForm').reset();
       document.getElementById('editPhotoId').value = '';
-      document.getElementById('formHeading').textContent = 'Publish New Photo';
-      document.getElementById('uploadBtn').textContent = 'Publish Photo';
+      document.getElementById('formHeading').textContent = "Publish New Photo";
+      document.getElementById('uploadBtn').textContent = "Publish Photo";
       document.getElementById('cancelEditBtn').classList.add('hidden');
       document.getElementById('imageOptionalLabel').classList.add('hidden');
     }
 
-    function escapeAttr(str) {
-      if (!str) return '';
-      str = String(str);
-      return str.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    window.deletePhotoItem = async function(id, title) {
+      if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+
+      try {
+        await deleteDoc(doc(db, "photos", id));
+        showToast('Photo deleted successfully!');
+        logAdminActivity('Deleted Post', title);
+        await loadPhotosFromFirebase();
+        renderAdminTable();
+      } catch (e) {
+        console.error("Error deleting photo:", e);
+        showToast('Failed to delete photo!', 'error');
+      }
     }
+
+    function logAdminActivity(action, title) {
+      let history = JSON.parse(localStorage.getItem('admin_activity_history') || '[]');
+      history.unshift({
+        action,
+        title,
+        date: new Date().toLocaleString()
+      });
+      if (history.history > 50) history.pop();
+      localStorage.setItem('admin_activity_history', JSON.stringify(history));
+      renderActivityHistory();
+    }
+
+    window.renderActivityHistory = function() {
+      const tbody = document.getElementById('activityTableBody');
+      const history = JSON.parse(localStorage.getItem('admin_activity_history') || '[]');
+
+      if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center opacity-60">No activity recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      history.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-[var(--border-color)] hover:bg-white/5 transition';
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-brand-400">${item.action}</td>
+          <td class="py-3 px-4">${item.title}</td>
+          <td class="py-3 px-4 opacity-70 text-xs">${item.date}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.clearActivityHistory = function() {
+      localStorage.removeItem('admin_activity_history');
+      renderActivityHistory();
+      showToast('Activity history cleared.');
+    }
+
+    renderActivityHistory();
   </script>
 </body>
 </html>
