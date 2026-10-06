@@ -638,16 +638,16 @@
       showToast('Activity history cleared.');
     }
 
-    // TELEGRAM AUTO NOTIFICATION FUNCTION (TEXT & LINK ONLY)
+    // TELEGRAM AUTO NOTIFICATION FUNCTION (NO HASHTAGS)
     async function sendTelegramNotification(title, description, linkUrl) {
       const botToken = '8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I'; 
       const chatId = '-1003951414350'; 
 
-      let message = "🚀 අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා! 🔥\n\n";
-      message += "📌 මාතෘකාව: " + title + "\n\n";
-      message += "📝 විස්තරය: " + description + "\n\n";
+      let message = "අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා!\n\n";
+      message += "මාතෘකාව: " + title + "\n\n";
+      message += "විස්තරය: " + description + "\n\n";
       if (linkUrl) {
-        message += "👉 වැඩි විස්තර සහ ලින්ක් එක මෙතනින් බලන්න:\n" + linkUrl;
+        message += "වැඩි විස්තර සහ ලින්ක් එක මෙතනින් බලන්න:\n" + linkUrl;
       }
 
       let apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -673,16 +673,16 @@
       }
     }
 
-    // MANUAL TELEGRAM BUTTON FUNCTION (TEXT & LINK ONLY)
+    // MANUAL TELEGRAM BUTTON FUNCTION (NO HASHTAGS)
     window.sendManualTelegram = async function(title, description, linkUrl) {
       const botToken = '8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I'; 
       const chatId = '-1003951414350'; 
 
-      let message = "📢 Photo Hub - විශේෂ පෝස්ට් එකක්! 🔥\n\n";
-      message += "📌 මාතෘකාව: " + title + "\n\n";
-      message += "📝 විස්තරය: " + description + "\n\n";
+      let message = "Photo Hub - විශේෂ පෝස්ට් එකක්!\n\n";
+      message += "මාතෘකාව: " + title + "\n\n";
+      message += "විස්තරය: " + description + "\n\n";
       if (linkUrl) {
-        message += "👉 වැඩි විස්තර මෙතනින් බලන්න:\n" + linkUrl;
+        message += "වැඩි විස්තර මෙතනින් බලන්න:\n" + linkUrl;
       }
 
       let apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -701,7 +701,7 @@
         let data = await response.json();
         if (data.ok) {
           logActivity('Send Telegram', title);
-          showToast("Telegram වෙත සාර්ථකව යවන ලදී! 🚀");
+          showToast("Telegram වෙත සාර්ථකව යවන ලදී!");
         } else {
           showToast("Telegram යැවීමේ දෝෂයක් ඇත!", "error");
         }
