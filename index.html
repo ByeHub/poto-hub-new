@@ -638,8 +638,8 @@
 
     // TELEGRAM AUTO NOTIFICATION FUNCTION
     async function sendTelegramNotification(title, description, linkUrl, photoUrl) {
-      const botToken = '8413083837:AAH0pPz8qE37s8iK...'; // ඔයාගේ Bot Token එක මෙතන තියෙනවා
-      const chatId = '-1003951414350';
+      const botToken = '8413083837:AAH0pPz8qE37s8iK...'; // ඔයාගේ Bot Token එක මෙතන නිවැරදිව ඇත
+      const chatId = '-1003951414350'; // ඔයාගේ Group Chat ID එක මෙතන නිවැරදිව ඇත
 
       let message = "🚀 **අලුත් පෝස්ට් එකක් අප්ලෝඩ් කළා!** 🔥\n\n";
       message += "📌 **මාතෘකාව:** " + title + "\n\n";
@@ -724,7 +724,9 @@
             views: 0
           });
 
+          // මෙන්න මෙතැනින් අලුත් පෝස්ට් එකක් දැමූ ගමන් ඔටෝ ටෙලිග්‍රෑම් එකට යයි!
           await sendTelegramNotification(title, description, linkUrl, imageUrl);
+          
           logActivity('Publish Photo', title);
           showToast('Successfully published and sent to Telegram!', 'success');
           document.getElementById('uploadPhotoForm').reset();
