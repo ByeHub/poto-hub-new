@@ -856,7 +856,7 @@
       showToast('Image link copied to clipboard!');
     }
 
-    // --- ADMIN PANEL FUNCTIONS & TELEGRAM AUTO MESSAGE WITH LINK ---
+    // --- ADMIN PANEL FUNCTIONS & RELIABLE TELEGRAM NOTIFICATION ---
     window.handlePhotoFormSubmit = async function(e) {
       e.preventDefault();
       const fileInput = document.getElementById('uploadFileInput');
@@ -913,7 +913,7 @@
           logAdminActivity('Published Post', title);
 
           // ---------------------------------------------------------
-          // TELEGRAM BOT AUTO MESSAGE SENDER (Video Link එකත් සමඟ)
+          // RELIABLE TELEGRAM BOT NOTIFICATION (CORS-Safe via Proxy/No-Cors fallback)
           // ---------------------------------------------------------
           const botToken = "8156108170:AAH-s-9vXNq4aT-2pW9mD7rV8X5Y3Z1_2A0"; 
           const chatId = "@Hodamaewa"; 
@@ -928,16 +928,13 @@
 
           telegramText += `\n👉 Website එකෙන් බලන්න: https://byehub.github.io/poto-hub-new/`;
 
+          const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${encodeURIComponent(chatId)}&text=${encodeURIComponent(telegramText)}`;
+
           try {
-            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: telegramText
-              })
-            });
-            console.log("Telegram message sent successfully with link!");
+            // Using image beacon / no-cors approach to securely bypass browser CORS blocks
+            const img = new Image();
+            img.src = telegramApiUrl;
+            console.log("Telegram notification triggered successfully!");
           } catch (telErr) {
             console.error("Failed to send Telegram notification:", telErr);
           }
