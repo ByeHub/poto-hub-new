@@ -266,6 +266,21 @@
           <button onclick="handleLogout()" class="px-5 py-2.5 rounded-xl bg-red-950/60 text-red-400 hover:bg-red-900/60 text-sm font-semibold transition">Logout</button>
         </div>
 
+        <!-- AI ERROR ASSISTANT MONITOR PANEL -->
+        <div id="aiErrorPanel" class="hidden glass-card rounded-3xl p-6 border-l-4 border-red-500 bg-red-950/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 text-red-400 font-bold text-sm">
+              <span>⚠️</span> <span>System Error Detected</span>
+            </div>
+            <button onclick="closeAiErrorPanel()" class="text-xs opacity-60 hover:opacity-100">&times; Close</button>
+          </div>
+          <div id="aiErrorText" class="text-xs font-mono bg-black/40 p-3 rounded-xl opacity-80 break-all text-red-300"></div>
+          <button onclick="explainErrorWithAi()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
+            <span>🤖</span> <span>AI Fix & Solution</span>
+          </button>
+          <div id="aiExplanationResult" class="hidden text-xs bg-purple-950/40 border border-brand-500/30 p-4 rounded-xl space-y-2 text-slate-200"></div>
+        </div>
+
         <div class="glass-card rounded-3xl p-6 sm:p-8">
           <h2 id="formHeading" class="text-xl font-bold mb-6">Publish New Photo</h2>
           <form id="uploadPhotoForm" onsubmit="handlePhotoFormSubmit(event)" class="space-y-5">
@@ -439,6 +454,7 @@
     let slideshowInterval = null;
 
     let isSignupMode = true;
+    let lastCapturedError = "";
 
     const adUrl = "https://omg10.com/4/11883914";
     let globalAdOpened = false;
@@ -456,6 +472,38 @@
 
     function checkAdminSession() {
       return sessionStorage.getItem("isAdminLoggedIn") === "true";
+    }
+
+    // --- AI ERROR ASSISTANT LOGIC ---
+    window.triggerAiErrorPanel = function(errMessage) {
+      lastCapturedError = String(errMessage);
+      const panel = document.getElementById('aiErrorPanel');
+      const errBox = document.getElementById('aiErrorText');
+      if (panel && errBox) {
+        errBox.textContent = lastCapturedError;
+        panel.classList.remove('hidden');
+      }
+    }
+
+    window.closeAiErrorPanel = function() {
+      document.getElementById('aiErrorPanel').classList.add('hidden');
+      document.getElementById('aiExplanationResult').classList.add('hidden');
+    }
+
+    window.explainErrorWithAi = function() {
+      const resBox = document.getElementById('aiExplanationResult');
+      resBox.classList.remove('hidden');
+      
+      let explanation = "";
+      if (lastCapturedError.includes("400")) {
+        explanation = "<b>💡 AI විශ්ලේෂණය:</b><br>Telegram API Status 400 Error එකක්. මෙයට ප්‍රධානම හේතුව පින්තූරයේ Data ප්‍රමාණය විශාල වීම හෝ Markdown Formatting වල දෝෂයකි. කේතයේ Base64/Blob data හරියාකාරව යැවෙනවාදැයි පරීක්ෂා කරන්න.";
+      } else if (lastCapturedError.includes("404")) {
+        explanation = "<b>💡 AI විශ්ලේෂණය:</b><br>404 File Not Found Error. GitHub Pages හි index.html ෆයිල් එක සොයාගැනීමට නොහැකි වී ඇත. ෆයිල් එකේ නම Simple letters වලින් index.html දැයි පරීක්ෂා කරන්න.";
+      } else {
+        explanation = `<b>💡 AI විශ්ලේෂණය:</b><br>ලැබුණු Error එක: <i>${lastCapturedError}</i><br>නෙට්වර්ක් සම්බන්ධතාවය සහ යවා ඇති Data වල නිවැරදිභාවය පරීක්ෂා කරන්න.`;
+      }
+      
+      resBox.innerHTML = explanation;
     }
 
     window.openGuideModal = function() {
@@ -643,7 +691,7 @@
       navigateTo('gallery');
     }
 
-    // --- TELEGRAM NOTIFICATION FUNCTION (CONVERT BASE64 TO BLOB & SEND) ---
+    // --- TELEGRAM NOTIFICATION FUNCTION WITH AI ERROR MONITORING ---
     async function sendTelegramNotification(postTitle, postDescription, videoUrl, imageUrl) {
       const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
       const chatId = "-1003951414350"; 
@@ -665,7 +713,6 @@
         formData.append('caption', caption);
         formData.append('parse_mode', 'Markdown');
 
-        // Base64 Data String එක සැබෑ Binary Blob/File එකක් බවට Convert කිරීම
         if (imageUrl && imageUrl.startsWith('data:image')) {
           const res = await fetch(imageUrl);
           const blob = await res.blob();
@@ -684,9 +731,11 @@
           console.log('Telegram group එකට පින්තූරය සහ මැසේජ් එක සාර්ථකව යැවුණා!');
         } else {
           console.error('Telegram Error:', data);
+          triggerAiErrorPanel(`Telegram API Error: ${data.description || 'Status 400 Bad Request'}`);
         }
       } catch (error) {
         console.error('Network Error:', error);
+        triggerAiErrorPanel(`Network Error: ${error.message}`);
       }
     }
 
@@ -744,6 +793,7 @@
         renderSlideshow();
       } catch (err) {
         console.error("Error loading photos:", err);
+        triggerAiErrorPanel(`Firebase Load Error: ${err.message}`);
         if (spinner) spinner.innerHTML = `<p class="text-red-400 text-sm font-bold">Failed to load photos from database.</p>`;
       }
     }
@@ -971,7 +1021,7 @@
             createdAt: new Date().toISOString()
           });
 
-          // Send Telegram Notification with Image Data/Blob
+          // Send Telegram Notification
           sendTelegramNotification(title, description, linkUrl, imageUrl);
 
           logActivity('PUBLISH', title);
@@ -983,6 +1033,7 @@
         renderAdminTable();
       } catch (err) {
         console.error(err);
+        triggerAiErrorPanel(`Form Submit Error: ${err.message}`);
         showToast(err.message || 'Operation failed!', 'error');
       } finally {
         submitBtn.disabled = false;
@@ -1040,6 +1091,7 @@
         renderAdminTable();
       } catch (err) {
         console.error(err);
+        triggerAiErrorPanel(`Delete Error: ${err.message}`);
         showToast('Failed to delete photo.', 'error');
       }
     }
