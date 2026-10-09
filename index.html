@@ -643,8 +643,8 @@
       navigateTo('gallery');
     }
 
-    // --- TELEGRAM NOTIFICATION FUNCTION (BLOB PHOTO + LINKS) ---
-    async function sendTelegramNotification(postTitle, postDescription, videoUrl, file) {
+    // --- TELEGRAM NOTIFICATION FUNCTION (CONVERT BASE64 TO BLOB & SEND) ---
+    async function sendTelegramNotification(postTitle, postDescription, videoUrl, imageUrl) {
       const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
       const chatId = "-1003951414350"; 
       const siteUrl = "https://byehub.github.io/poto-hub-new/";
@@ -659,19 +659,22 @@
 
       caption += `\n👉 **Website එකෙන් බලන්න:** ${siteUrl}`;
 
-      const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
-
       try {
-        const fileArrayBuffer = await file.arrayBuffer();
-        const blob = new Blob([fileArrayBuffer], { type: file.type });
-
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('caption', caption);
         formData.append('parse_mode', 'Markdown');
-        formData.append('photo', blob, file.name || 'photo.jpg');
 
-        const response = await fetch(url, {
+        // Base64 Data String එක සැබෑ Binary Blob/File එකක් බවට Convert කිරීම
+        if (imageUrl && imageUrl.startsWith('data:image')) {
+          const res = await fetch(imageUrl);
+          const blob = await res.blob();
+          formData.append('photo', blob, 'photo.jpg');
+        } else if (imageUrl) {
+          formData.append('photo', imageUrl);
+        }
+
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
           method: 'POST',
           body: formData
         });
@@ -680,32 +683,11 @@
         if (data.ok) {
           console.log('Telegram group එකට පින්තූරය සහ මැසේජ් එක සාර්ථකව යැවුණා!');
         } else {
-          console.error('Telegram API Error:', data);
-          sendFallbackTextMessage(postTitle, postDescription, videoUrl);
+          console.error('Telegram Error:', data);
         }
       } catch (error) {
-        console.error('Network/File Error:', error);
-        sendFallbackTextMessage(postTitle, postDescription, videoUrl);
+        console.error('Network Error:', error);
       }
-    }
-
-    async function sendFallbackTextMessage(postTitle, postDescription, videoUrl) {
-      const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
-      const chatId = "-1003951414350"; 
-      const siteUrl = "https://byehub.github.io/poto-hub-new/";
-
-      let text = `🚨 **අලුත් Post එකක් එකතු විය!**\n\n` +
-                 `📌 **Title:** ${postTitle}\n` +
-                 `📝 **Description:** ${postDescription}\n`;
-
-      if (videoUrl) text += `🎬 **Watch Video:** ${videoUrl}\n`;
-      text += `\n👉 **Website එකෙන් බලන්න:** ${siteUrl}`;
-
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
-      });
     }
 
     // --- ACTIVITY HISTORY FUNCTIONS ---
@@ -963,10 +945,9 @@
 
       try {
         let imageUrl = "";
-        let selectedFile = null;
         
         if (fileInput.files && fileInput.files[0]) {
-          selectedFile = fileInput.files[0];
+          const selectedFile = fileInput.files[0];
           imageUrl = await convertFileToBase64(selectedFile);
         }
 
@@ -978,7 +959,7 @@
           logActivity('UPDATE', title);
           showToast('Photo updated successfully!');
         } else {
-          if (!imageUrl || !selectedFile) {
+          if (!imageUrl) {
             throw new Error("Please select an image file from your PC.");
           }
           await addDoc(collection(db, "photos"), {
@@ -990,8 +971,8 @@
             createdAt: new Date().toISOString()
           });
 
-          // Send Telegram Notification
-          sendTelegramNotification(title, description, linkUrl, selectedFile);
+          // Send Telegram Notification with Image Data/Blob
+          sendTelegramNotification(title, description, linkUrl, imageUrl);
 
           logActivity('PUBLISH', title);
           showToast('Photo published & Telegram group alert sent!');
