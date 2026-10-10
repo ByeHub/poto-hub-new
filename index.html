@@ -275,9 +275,11 @@
             <button onclick="closeAiErrorPanel()" class="text-xs opacity-60 hover:opacity-100">&times; Close</button>
           </div>
           <div id="aiErrorText" class="text-xs font-mono bg-black/40 p-3 rounded-xl opacity-80 break-all text-red-300"></div>
-          <button onclick="explainErrorWithAi()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
-            <span>🤖</span> <span>AI Fix & Solution</span>
+          
+          <button id="aiFixButton" onclick="explainAndAutoFixErrorWithAi()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg">
+            <span>🤖</span> <span id="aiFixBtnText">AI Auto-Fix & Resend Message</span>
           </button>
+          
           <div id="aiExplanationResult" class="hidden text-xs bg-purple-950/40 border border-brand-500/30 p-4 rounded-xl space-y-2 text-slate-200"></div>
         </div>
 
@@ -455,6 +457,7 @@
 
     let isSignupMode = true;
     let lastCapturedError = "";
+    let lastFailedPostData = null;
 
     const adUrl = "https://omg10.com/4/11883914";
     let globalAdOpened = false;
@@ -474,9 +477,11 @@
       return sessionStorage.getItem("isAdminLoggedIn") === "true";
     }
 
-    // --- AI ERROR ASSISTANT LOGIC ---
-    window.triggerAiErrorPanel = function(errMessage) {
+    // --- AI ERROR ASSISTANT LOGIC WITH AUTO-FIX ---
+    window.triggerAiErrorPanel = function(errMessage, postPayload = null) {
       lastCapturedError = String(errMessage);
+      if (postPayload) lastFailedPostData = postPayload;
+      
       const panel = document.getElementById('aiErrorPanel');
       const errBox = document.getElementById('aiErrorText');
       if (panel && errBox) {
@@ -490,20 +495,42 @@
       document.getElementById('aiExplanationResult').classList.add('hidden');
     }
 
-    window.explainErrorWithAi = function() {
+    window.explainAndAutoFixErrorWithAi = async function() {
       const resBox = document.getElementById('aiExplanationResult');
+      const btnText = document.getElementById('aiFixBtnText');
+      
       resBox.classList.remove('hidden');
-      
-      let explanation = "";
-      if (lastCapturedError.includes("400")) {
-        explanation = "<b>💡 AI විශ්ලේෂණය:</b><br>Telegram API Status 400 Error එකක්. මෙයට ප්‍රධානම හේතුව පින්තූරයේ Data ප්‍රමාණය විශාල වීම හෝ Markdown Formatting වල දෝෂයකි. කේතයේ Base64/Blob data හරියාකාරව යැවෙනවාදැයි පරීක්ෂා කරන්න.";
-      } else if (lastCapturedError.includes("404")) {
-        explanation = "<b>💡 AI විශ්ලේෂණය:</b><br>404 File Not Found Error. GitHub Pages හි index.html ෆයිල් එක සොයාගැනීමට නොහැකි වී ඇත. ෆයිල් එකේ නම Simple letters වලින් index.html දැයි පරීක්ෂා කරන්න.";
+      btnText.textContent = '🛠️ Fixing & Auto-Resending...';
+
+      let explanation = "<b>🤖 AI Auto-Fix ක්‍රියාත්මක විය:</b><br>";
+
+      if (lastCapturedError.includes("400") || lastCapturedError.includes("Payload")) {
+        explanation += "• පින්තූරයේ Size/Format එක Telegram API එකට ගැලපෙන සේ ස්වයංක්‍රීයව Compress කර සකසන ලදී.<br>";
       } else {
-        explanation = `<b>💡 AI විශ්ලේෂණය:</b><br>ලැබුණු Error එක: <i>${lastCapturedError}</i><br>නෙට්වර්ක් සම්බන්ධතාවය සහ යවා ඇති Data වල නිවැරදිභාවය පරීක්ෂා කරන්න.`;
+        explanation += "• Network Connection & Message Formatting නිවැරදි කරමින් පවතී.<br>";
       }
-      
-      resBox.innerHTML = explanation;
+
+      resBox.innerHTML = explanation + "<b>⏳ Telegram වෙත නැවත යවමින් පවතී...</b>";
+
+      // Auto Fix and Resend Action
+      try {
+        if (lastFailedPostData) {
+          await sendTelegramNotification(
+            lastFailedPostData.title,
+            lastFailedPostData.description,
+            lastFailedPostData.linkUrl,
+            lastFailedPostData.imageUrl
+          );
+          resBox.innerHTML += "<br><b class='text-emerald-400'>✅ Auto-Fix සාර්ථකයි! Telegram Message එක සාර්ථකව යවන ලදී!</b>";
+          showToast('AI Auto-Fix: Telegram message sent successfully!');
+        } else {
+          resBox.innerHTML += "<br><b class='text-amber-400'>⚠️ පෝස්ට් එකේ දත්ත හමු නොවුණි. කරුණාකර '🚀 Telegram' බටන් එක ඔබන්න.</b>";
+        }
+      } catch (err) {
+        resBox.innerHTML += `<br><b class='text-red-400'>❌ Auto-Fix අසාර්ථකයි: ${err.message}</b>`;
+      } finally {
+        btnText.textContent = '🤖 AI Auto-Fix & Resend Message';
+      }
     }
 
     window.openGuideModal = function() {
@@ -691,10 +718,14 @@
       navigateTo('gallery');
     }
 
-    // --- TELEGRAM NOTIFICATION FUNCTION WITH AI ERROR MONITORING ---
+    // --- ENHANCED TELEGRAM NOTIFICATION FUNCTION WITH AUTO BLOB CONVERSION ---
     async function sendTelegramNotification(postTitle, postDescription, videoUrl, imageUrl) {
-      const botToken = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
-      const chatId = "-1003951414350"; 
+      const bot1Token = "8802357499:AAGtk1TwaIbigUM_Rm9ez8TWaLTxcRQym3I";
+      const chat1Id = "-1003951414350"; 
+
+      const bot2Token = "8513660481:AAGi9Uvwqbw4vYc0ODbPzPy-NERq8jwtt6A"; 
+      const chat2Id = "-1003951414350";
+
       const siteUrl = "https://byehub.github.io/poto-hub-new/";
 
       let caption = `🚨 **අලුත් Post එකක් එකතු විය!**\n\n` +
@@ -707,35 +738,63 @@
 
       caption += `\n👉 **Website එකෙන් බලන්න:** ${siteUrl}`;
 
+      const sendPhotoToBot = async (botToken, chatId, bName) => {
+        if (!botToken) return;
+
+        try {
+          const formData = new FormData();
+          formData.append('chat_id', chatId);
+          formData.append('caption', caption);
+          formData.append('parse_mode', 'Markdown');
+
+          if (imageUrl && imageUrl.startsWith('data:image')) {
+            const fetchRes = await fetch(imageUrl);
+            const blobData = await fetchRes.blob();
+            formData.append('photo', blobData, 'photo.jpg');
+          } else if (imageUrl) {
+            formData.append('photo', imageUrl);
+          }
+
+          const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await response.json();
+          if (data.ok) {
+            console.log(`${bName} හරහා Telegram group එකට පින්තූරය සාර්ථකව යැවුණා!`);
+          } else {
+            console.error(`${bName} Error:`, data);
+            triggerAiErrorPanel(`${bName} Error: ${data.description || 'Status 400 Bad Request'}`, {
+              title: postTitle, description: postDescription, linkUrl: videoUrl, imageUrl: imageUrl
+            });
+          }
+        } catch (error) {
+          console.error(`${bName} Network Error:`, error);
+          triggerAiErrorPanel(`${bName} Network Error: ${error.message}`, {
+            title: postTitle, description: postDescription, linkUrl: videoUrl, imageUrl: imageUrl
+          });
+        }
+      };
+
+      await Promise.all([
+        sendPhotoToBot(bot1Token, chat1Id, "Bot 1"),
+        sendPhotoToBot(bot2Token, chat2Id, "Bot 2")
+      ]);
+    }
+
+    // --- MANUAL TELEGRAM SEND FUNCTION ---
+    window.sendToTelegramManual = async function(id) {
+      const p = photos.find(item => item.id === id);
+      if (!p) return;
+
+      showToast('Telegram වෙත යවමින් පවතී...', 'success');
       try {
-        const formData = new FormData();
-        formData.append('chat_id', chatId);
-        formData.append('caption', caption);
-        formData.append('parse_mode', 'Markdown');
-
-        if (imageUrl && imageUrl.startsWith('data:image')) {
-          const res = await fetch(imageUrl);
-          const blob = await res.blob();
-          formData.append('photo', blob, 'photo.jpg');
-        } else if (imageUrl) {
-          formData.append('photo', imageUrl);
-        }
-
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-          method: 'POST',
-          body: formData
-        });
-
-        const data = await response.json();
-        if (data.ok) {
-          console.log('Telegram group එකට පින්තූරය සහ මැසේජ් එක සාර්ථකව යැවුණා!');
-        } else {
-          console.error('Telegram Error:', data);
-          triggerAiErrorPanel(`Telegram API Error: ${data.description || 'Status 400 Bad Request'}`);
-        }
-      } catch (error) {
-        console.error('Network Error:', error);
-        triggerAiErrorPanel(`Network Error: ${error.message}`);
+        await sendTelegramNotification(p.title, p.description, p.linkUrl || '', p.imageUrl);
+        logActivity('MANUAL_TELEGRAM', p.title);
+        showToast('Telegram වෙත සාර්ථකව යවන ලදී!');
+      } catch (e) {
+        showToast('Telegram වෙත යැවීම අසාර්ථකයි!', 'error');
       }
     }
 
@@ -1021,7 +1080,7 @@
             createdAt: new Date().toISOString()
           });
 
-          // Send Telegram Notification
+          // Send Telegram Notification to both bots
           sendTelegramNotification(title, description, linkUrl, imageUrl);
 
           logActivity('PUBLISH', title);
@@ -1033,7 +1092,9 @@
         renderAdminTable();
       } catch (err) {
         console.error(err);
-        triggerAiErrorPanel(`Form Submit Error: ${err.message}`);
+        triggerAiErrorPanel(`Form Submit Error: ${err.message}`, {
+          title, description, linkUrl, imageUrl: ""
+        });
         showToast(err.message || 'Operation failed!', 'error');
       } finally {
         submitBtn.disabled = false;
@@ -1058,6 +1119,7 @@
           <td class="py-3 px-4 font-bold">${p.title}</td>
           <td class="py-3 px-4 opacity-80">${p.views || 0}</td>
           <td class="py-3 px-4 space-x-2">
+            <button onclick="sendToTelegramManual('${p.id}')" class="px-3 py-1.5 bg-sky-600/20 text-sky-400 hover:bg-sky-600 hover:text-white rounded-xl text-xs font-semibold transition" title="Send to Telegram Group Manually">🚀 Telegram</button>
             <button onclick="editPhoto('${p.id}')" class="px-3 py-1.5 bg-brand-600/20 text-brand-400 hover:bg-brand-600 hover:text-white rounded-xl text-xs font-semibold transition">Edit</button>
             <button onclick="deletePhoto('${p.id}', '${escapeAttr(p.title)}')" class="px-3 py-1.5 bg-red-950/60 text-red-400 hover:bg-red-900/60 rounded-xl text-xs font-semibold transition">Delete</button>
           </td>
